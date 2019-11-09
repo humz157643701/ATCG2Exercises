@@ -1,0 +1,91 @@
+#version 440 core
+layout (local_size_x = %LOCAL_SIZE_X%, local_size_y = %LOCAL_SIZE_Y%, local_size_z = %LOCAL_SIZE_Z%) in;
+
+
+//----------------------------------------- counters -------------------------------------------------------------
+//dead particle counter
+layout(binding = 0, offset = 0) uniform atomic_uint ac_dpc;
+//alive particle counter
+layout(binding = 0, offset = 4) uniform atomic_uint ac_apc;
+
+//----------------------------------------- particle data ---------------------------------------------------------
+//particle's position and lifetime
+struct Particle
+{
+    vec3 pos;
+    float lt;
+    vec3 vel;
+    float rot;
+};
+
+layout(binding = 0, std430) buffer pdataLayout
+{
+    Particle particles[];
+} sb_pdata;
+
+//---------------------------------------- index lists -------------------------------------------------------------
+//list of dead particles
+layout(binding = 1, std430) buffer dplLayout
+{
+    uint dpidx[];
+} sb_deadParticles;
+
+//list of alive particles
+layout(binding = 2, std430) buffer aplLayout
+{
+    uint apidx[];
+} sb_aliveParticles;
+
+//--------------------------------------- uniforms -----------------------------------------------------------------
+//random textures
+uniform samplerBuffer t_random;
+uniform uint numRandomTexels;
+uniform uint randomOffset;
+
+//spawn params
+uniform vec3 position;
+uniform mat3 orientation; //rotation matrix of the particle system. Spawn-direction is -z axis
+uniform float emitAngle;
+uniform vec2 startVelocityRange;
+uniform float lifetime;
+uniform uint numParticles;
+
+#define PI 3.14159265359
+
+void main()
+{    
+    if(gl_GlobalInvocationID.x >= numParticles)
+        return;
+    //atomicCounterDecrement returns the MODIFIED value!
+    uint deadListIndex = atomicCounterDecrement(ac_dpc);
+    //get the actual particle index from the dead list
+    uint newParticleIndex = sb_deadParticles.dpidx[deadListIndex];
+
+    //set position and lifetime of new particle
+    sb_pdata.particles[newParticleIndex].pos = position;
+    sb_pdata.particles[newParticleIndex].lt = lifetime;
+
+    //create random start velocity
+    vec4 rvec = texelFetch(t_random, int(mod(gl_GlobalInvocationID.x + int(randomOffset), numRandomTexels)));
+    float phi = rvec.x * 2 * PI;
+    float theta = rvec.y * emitAngle;
+
+    //get perturbed (0 0 -1) vector
+    vec3 direction = -vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));
+
+    //transform direction into world space
+    direction = orientation * direction;
+
+    //scale
+    direction = direction * mix(startVelocityRange.x, startVelocityRange.y, rvec.z);
+
+    //set velocity of the new particle
+    sb_pdata.particles[newParticleIndex].vel = direction;
+
+    //random initial rotation around billboard's z-axis
+    sb_pdata.particles[newParticleIndex].rot = 2.0 * PI * rvec.w;
+
+    //increase alive particle count and append the new one to the alive list
+    uint newParticleWriteIndex = atomicCounterIncrement(ac_apc);
+    sb_aliveParticles.apidx[newParticleWriteIndex] = newParticleIndex;      
+}

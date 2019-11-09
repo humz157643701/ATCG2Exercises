@@ -1,0 +1,93 @@
+#version 440 core
+layout (local_size_x = %LOCAL_SIZE_X%, local_size_y = %LOCAL_SIZE_Y%, local_size_z = %LOCAL_SIZE_Z%) in;
+
+
+//----------------------------------------- counters -------------------------------------------------------------
+//dead particle counter
+layout(binding = 0, offset = 0) uniform atomic_uint ac_dpc;
+//alive particle counter
+layout(binding = 0, offset = 4) uniform atomic_uint ac_apc;
+
+//----------------------------------------- particle data ---------------------------------------------------------
+//particle's position and lifetime
+struct Particle
+{
+    vec3 pos;
+    float lt;
+    vec3 vel;
+    float rot;
+};
+
+layout(binding = 0, std430) buffer pdataLayout
+{
+    Particle particles[];
+} sb_pdata;
+
+//---------------------------------------- index lists -------------------------------------------------------------
+//list of dead particles
+layout(std430, binding = 1) buffer dplLayout
+{
+    uint dpidx[];
+} sb_deadParticles;
+
+//list of alive particles 1 (read)
+layout(std430, binding = 2) buffer ap1lLayout
+{
+    uint apidx1[];
+} sb_aliveParticles1;
+
+//list of alive particles 2 (write)
+layout(std430, binding = 3) buffer ap2lLayout
+{
+    uint apidx2[];
+} sb_aliveParticles2;
+
+//--------------------------------------- uniforms -----------------------------------------------------------------
+
+uniform float dt;
+uniform vec3 force;
+uniform float mass;
+uniform uint numParticles;
+
+#define PI 3.14159265359
+
+void main()
+{    
+    if(gl_GlobalInvocationID.x >= numParticles)
+        return;
+    //this thing is invoked for every living particle, so first get the index for the read list
+    uint readindex = uint(gl_GlobalInvocationID.x);
+    uint particleindex = sb_aliveParticles1.apidx1[readindex];
+
+    //get particle data
+    Particle p = sb_pdata.particles[particleindex];
+
+    //calculate new rest of lifetime
+    float newlt = p.lt - dt;
+
+    if(newlt >= 0.0)
+    {
+        //particle is alive
+        //do a velocity verlet step, assume acceleration constant for now.
+        vec3 a = force / mass;
+        vec3 newpos = p.pos + p.vel * dt + 0.5 * a * dt * dt;
+        vec3 newvel = p.vel + a * dt;
+
+        //write particle output
+        sb_pdata.particles[particleindex].pos = newpos;
+        sb_pdata.particles[particleindex].lt = newlt;
+        sb_pdata.particles[particleindex].vel = newvel;
+
+        //write particle index to alive list 2
+        uint writeindex = atomicCounterIncrement(ac_apc);
+        sb_aliveParticles2.apidx2[writeindex] = particleindex;
+    }
+    else
+    {
+        //particle is dead
+        //increment dead count
+        uint deadindex = atomicCounterIncrement(ac_dpc);
+        //and add the index of the dead particle to the dead list
+        sb_deadParticles.dpidx[deadindex] = particleindex;
+    }    
+}

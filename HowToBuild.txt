@@ -1,0 +1,30 @@
+Prerequisites:
+	Assimp Library
+		A zip file containing the library's master branch can be found in the libs directory.
+		
+		The library must be compiled and installed on the system.
+		Make sure that the binaries and the lib files are in the system path.
+		Also make sure to build Assimp in release configuration and for the
+		same architecture as the test application (x86, x86_64 ...)
+
+		Because the CMake config files of Assimp are a little bit .. off..,
+		they only return the file name of the library and not the complete path.
+		If the library files are not in the system path or otherwise visible
+		to the linker, it gets very unhappy.
+	
+	Some system that is able to run OpenGL 4.4
+
+Build:
+	Just run CMake from this directory and choose a generator that seems appropriate for the system.
+	Compile the application using the generated makefiles.
+
+Run:
+	Run the application either from this directory or copy it somewhere else together with
+	the assets directory. It has to see the asset directory, otherwise it will
+	report an error. (or crash, if I missed something)
+
+	
+	
+
+	
+	
