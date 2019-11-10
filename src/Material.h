@@ -29,7 +29,8 @@ public:
 				Texture* aniso_rotation,
 				Texture* fresnel_f0,
 				Texture* displacement,
-				Texture* transparency
+				Texture* transparency,
+				std::size_t mid = 0
 	);
 
 	//! Copy ctor
@@ -47,7 +48,9 @@ public:
 	Texture* m_aniso_rotation;
 	Texture* m_fresnel_f0;
 	Texture* m_displacement;
-	Texture* m_transparency;	
+	Texture* m_transparency;
+
+	std::size_t m_mid;	
 };
 
 #endif

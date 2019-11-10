@@ -8,7 +8,8 @@ Material::Material() :
 	m_aniso_rotation(nullptr),
 	m_fresnel_f0(nullptr),
 	m_displacement(nullptr),
-	m_transparency(nullptr)
+	m_transparency(nullptr),
+	m_mid(0)
 {
 }
 
@@ -20,7 +21,8 @@ Material::Material(
 	Texture* aniso_rotation,
 	Texture* fresnel_f0,
 	Texture* displacement,
-	Texture* transparency
+	Texture* transparency,
+	std::size_t mid
 	) :
 	m_diffuse_albedo(diffuse_albedo),
 	m_normals(normals),
@@ -29,7 +31,8 @@ Material::Material(
 	m_aniso_rotation(aniso_rotation),
 	m_fresnel_f0(fresnel_f0),
 	m_displacement(displacement),
-	m_transparency(transparency)
+	m_transparency(transparency),
+	m_mid(mid)
 {
 }
 

@@ -14,32 +14,7 @@ Mesh class
 #include <vector>
 #include <Shader.h>
 #include <memory>
-
-//! Simple data structure that holds vertex data
-struct Vertex
-{
-	glm::vec3 position;
-	glm::vec2 uv;
-	glm::vec3 normal;
-	glm::vec3 tangent;
-	glm::vec3 bitangent;
-};
-
-//! Typedef for index data
-using Index = GLuint;
-
-//! Used to conveniently specify OpenGL's vertex attributes
-struct VertexAttribute
-{
-	//! Number of components
-	GLint n;
-	//! OpenGL data type. (GL_FLOAT, GL_INT ...)
-	GLenum type;
-	//! Stride in bytes
-	GLsizei stride;
-	//! Attribute offset in bytes
-	GLintptr offset;
-};
+#include <CommonTypes.h>
 
 /*!
 \brief Class that manages geometry data ready to be rendered with OpenGL

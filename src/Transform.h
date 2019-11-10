@@ -1,5 +1,5 @@
 /** \addtogroup scene_components
-Implements a standard, 1st person fly-through camera with perspective projection
+transform
 *  @{
 */
 
@@ -26,21 +26,24 @@ public:
 		m_local_rotation(),
 		m_local_scale(1.0f, 1.0f, 1.0f),
 		m_ltp_dirty(true),
-		m_parent(nullptr)
+		m_parent(nullptr),
+		m_oid(0)
 	{}
 
-	Transform(const glm::mat4 & transformMatrix) :
-		m_parent(nullptr)
+	Transform(const glm::mat4 & transformMatrix, std::size_t oid = 0) :
+		m_parent(nullptr),
+		m_oid(oid)
 	{
 		setTransformMatrix(transformMatrix);
 	}
 
-	Transform(const glm::vec3 & position, const glm::quat & rotation, const glm::vec3 & scale) :
+	Transform(const glm::vec3 & position, const glm::quat & rotation, const glm::vec3 & scale, std::size_t oid = 0) :
 		m_local_position(position),
 		m_local_rotation(rotation),
 		m_local_scale(scale),
 		m_ltp_dirty(true),
-		m_parent(nullptr)
+		m_parent(nullptr),
+		m_oid(oid)
 	{
 	}
 
@@ -530,6 +533,11 @@ public:
 		}
 	}
 
+	std::size_t getOID() const
+	{
+		return m_oid;
+	}
+
 	//const std::vector<Transform*>& getChilds()
 	//{
 	//	return m_childs;
@@ -715,6 +723,9 @@ private:
 
 	// parent child
 	Transform* m_parent;
+
+	// object id for scene entity search
+	std::size_t m_oid;
 };
 
 #endif

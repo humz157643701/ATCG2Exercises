@@ -8,6 +8,7 @@
 #include <stb_image.h>
 #include <OBJLoader.h>
 #include <AxfReader.hpp>
+#include <cstddef>
 
 //internal types --------------------------------------------------------------------------------
 enum class TokType
@@ -376,13 +377,6 @@ public:
 	}
 };
 
-struct TexEntry
-{
-	Texture tex;
-	std::string path;
-};
-
-
 std::unique_ptr<Scene> SceneLoader::loadScene(const std::string & scenepath)
 {
 	Scene* scn = new Scene();
@@ -476,6 +470,12 @@ void SceneLoader::parseCamera(Scanner * scan, Scene * scn)
 {
 	glm::vec3 p, l, u;
 	float fov, near, far;
+	std::size_t id;
+	std::size_t pid;
+	// object id
+	id = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
+	// parentid. no parent => 0
+	pid = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
 
 	p.x = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	p.y = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
@@ -488,13 +488,14 @@ void SceneLoader::parseCamera(Scanner * scan, Scene * scn)
 	u.z = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	fov = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	near = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
-	far = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
-	
+	far = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);	
 
 	glm::mat4 viewmat = glm::lookAt(p, l, u);
 
 	scn->m_camera.setParameters(800, 600, glm::radians(fov), near, far);
 	scn->m_camera.transform.setTransformMatrix(glm::inverse(viewmat));
+	if(pid != 0)
+		scn->m_camera.transform.setParent(scn->getTransformByOID(pid));
 }
 
 void SceneLoader::parseModelOpaque(Scanner * scan, Scene * scn)
@@ -503,8 +504,18 @@ void SceneLoader::parseModelOpaque(Scanner * scan, Scene * scn)
 	glm::vec3 pos;
 	glm::vec3 scale;
 	glm::quat rot;
-
+	std::size_t id;
+	std::size_t pid;
+	std::size_t mid;
+	// object id
+	id = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
+	// parentid. no parent => 0
+	pid = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
+	// material id
+	mid = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
+	// obj path
 	path = scan->lookahead().value; scan->match(TokType::String);
+	// transform
 	pos.x =		static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	pos.y =		static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	pos.z =		static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
@@ -516,13 +527,28 @@ void SceneLoader::parseModelOpaque(Scanner * scan, Scene * scn)
 	scale.y =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	scale.z =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 
-	bool recalcnormals = scan->lookahead().boolvalue; scan->match(TokType::Boolean);
-
 	OBJResult res = OBJLoader::loadOBJ(path, recalcnormals, true);
 
-	
+	// for this simple application we simply merge all objects/meshes from one file into one model entity.
+	Model model;
+	for(OBJObject& o : res.objects)
+	{
+		for(OBJMesh& m : o.meshes)
+		{
+			if(!m.hasNormals)
+				OBJLoader::recalculateNormals(m);
+			scn->m_meshes.push_back(std::move(Mesh::createMesh(m.vertices, m.indices, m.atts, scn->getMaterialByID(mid))));
+			model.meshes.push_back(scn->m_meshes.back().get());
+		}
+	}
 
+	// set transform
+	model.transform = Transform(pos, rot, scale, id);
+	if(pid != 0)
+		model.transform.setParent(scn->getTransformByOID(pid));
 
+	// add model to scene
+	scn->m_opaque_models.push_back(std::move(model));
 }
 
 void SceneLoader::parseModelTransparent(Scanner * scan, Scene * scn)
@@ -531,8 +557,18 @@ void SceneLoader::parseModelTransparent(Scanner * scan, Scene * scn)
 	glm::vec3 pos;
 	glm::vec3 scale;
 	glm::quat rot;
-
-	path =		scan->lookahead().value; scan->match(TokType::String);
+	std::size_t id;
+	std::size_t pid;
+	std::size_t mid;
+	// object id
+	id = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
+	// parentid. no parent => 0
+	pid = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
+	// material id
+	mid = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
+	// obj path
+	path = scan->lookahead().value; scan->match(TokType::String);
+	// transform
 	pos.x =		static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	pos.y =		static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	pos.z =		static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
@@ -542,7 +578,30 @@ void SceneLoader::parseModelTransparent(Scanner * scan, Scene * scn)
 	rot.z =		static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	scale.x =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	scale.y =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
-	scale.z =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);	
+	scale.z =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
+
+	OBJResult res = OBJLoader::loadOBJ(path, recalcnormals, true);
+
+	// for this simple application we simply merge all objects/meshes from one file into one model entity.
+	Model model;
+	for(OBJObject& o : res.objects)
+	{
+		for(OBJMesh& m : o.meshes)
+		{
+			if(!m.hasNormals)
+				OBJLoader::recalculateNormals(m);
+			scn->m_meshes.push_back(std::move(Mesh::createMesh(m.vertices, m.indices, m.atts, scn->getMaterialByID(mid))));
+			model.meshes.push_back(scn->m_meshes.back().get());
+		}
+	}
+
+	// set transform
+	model.transform = Transform(pos, rot, scale, id);
+	if(pid != 0)
+		model.transform.setParent(scn->getTransformByOID(pid));
+
+	// add model to scene
+	scn->m_transparent_models.push_back(std::move(model));
 }
 
 void SceneLoader::parseDirLight(Scanner * scan, Scene * scn)
@@ -570,7 +629,12 @@ void SceneLoader::parsePointLight(Scanner * scan, Scene * scn)
 {
 	glm::vec3 c;
 	glm::vec3 p;
-
+	std::size_t id;
+	std::size_t pid;
+	// object id
+	id = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
+	// parentid. no parent => 0
+	pid = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
 	c.x = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	c.y = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	c.z = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
@@ -578,8 +642,10 @@ void SceneLoader::parsePointLight(Scanner * scan, Scene * scn)
 	p.y = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	p.z = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	
-
-	scn->m_pointlights.push_back(PointLight(Transform(p, glm::quat(), glm::vec3(1.0f)), c));
+	Transform t = Transform(p, glm::quat(), glm::vec3(1.0f), id);
+	if(pid != 0)
+		t.setParent(scn->getTransformByOID(pid));
+	scn->m_pointlights.push_back(PointLight(t, c));
 }
 
 void SceneLoader::parseAmbientLight(Scanner * scan, Scene * scn)

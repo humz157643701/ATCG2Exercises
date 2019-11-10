@@ -70,10 +70,22 @@ public:
 	*/
 	void drawTransparentWithMaterials(ShaderProgram* shader);
 	/**
-	\brief Triggers a simulation step for every particle system
+	\brief Triggers a simulation step for every entity that needs framerate-independent simulation
 	\param dt Delta time for the integrator to advance the system
 	*/
 	void update(float dt);
+
+	/**
+	\brief Returns a pointer to the transformation of scene entity with object id oid, nullptr otherwise
+	\param oid Object id to search for
+	*/
+	Transform* getTransformByOID(std::size_t oid);
+
+	/**
+	\brief Returns a pointer to material with given id, nullptr if no material with this id exists
+	\param mid Material id to search for
+	*/
+	Material* getMaterialByID(std::size_t mid);
 };
 
 #endif
