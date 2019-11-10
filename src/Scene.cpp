@@ -22,11 +22,6 @@ void Scene::drawTransparent(ShaderProgram * shader)
 	{
 		m.draw(shader);
 	}
-
-	for (auto& p : m_emitters)
-	{
-		p->draw(shader);
-	}
 }
 
 void Scene::drawTransparentWithMaterials(ShaderProgram * shader)
@@ -35,17 +30,9 @@ void Scene::drawTransparentWithMaterials(ShaderProgram * shader)
 	{
 		m.drawWithMaterials(shader);
 	}
-
-	for (auto& p : m_emitters)
-	{
-		p->drawWithMaterials(shader);
-	}
 }
 
 void Scene::update(float dt)
 {
-	for (auto& p : m_emitters)
-	{
-		p->update(dt);
-	}
+	
 }

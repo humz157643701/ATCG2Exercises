@@ -6,6 +6,8 @@
 #include <stack>
 #include <queue>
 #include <stb_image.h>
+#include <OBJLoader.h>
+#include <AxfReader.hpp>
 
 //internal types --------------------------------------------------------------------------------
 enum class TokType
@@ -16,7 +18,8 @@ enum class TokType
 	Int,
 	Invalid,
 	LineBreak,
-	EndOfFile
+	EndOfFile,
+	Boolean
 };
 
 struct Token
@@ -336,8 +339,19 @@ public:
 			{
 				idname += file[pos++];
 				++col;
-			}			
-			lh = Token(TokType::Name, idname);			
+			}
+			if (idname == "true")
+			{
+				lh = Token(TokType::Boolean, idname, true);
+			}
+			else if (idname == "false")
+			{
+				lh = Token(TokType::Boolean, idname, false);
+			}
+			else
+			{
+				lh = Token(TokType::Name, idname);
+			}
 			return lh;
 		}
 
@@ -432,15 +446,15 @@ void SceneLoader::parseFile(Scanner * scan, Scene * scn)
 			scan->match(TokType::Name);
 			parseEnvMap(scan, scn);
 		}
+		else if (scan->lookahead().value == "AXF_MATERIAL")
+		{
+			scan->match(TokType::Name);
+			parseMaterial(scan, scn);
+		}
 		else if (scan->lookahead().value == "MAX_LUM")
 		{
 			scan->match(TokType::Name);
 			parseMaxLum(scan, scn);
-		}
-		else if (scan->lookahead().value == "PARTICLE_EMITTER")
-		{
-			scan->match(TokType::Name);
-			parseParticleEmitter(scan, scn);
 		}
 		else if (scan->lookahead().value == "CLEAR_COLOR")
 		{
@@ -501,6 +515,14 @@ void SceneLoader::parseModelOpaque(Scanner * scan, Scene * scn)
 	scale.x =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	scale.y =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	scale.z =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
+
+	bool recalcnormals = scan->lookahead().boolvalue; scan->match(TokType::Boolean);
+
+	OBJResult res = OBJLoader::loadOBJ(path, recalcnormals, true);
+
+	
+
+
 }
 
 void SceneLoader::parseModelTransparent(Scanner * scan, Scene * scn)
@@ -520,10 +542,7 @@ void SceneLoader::parseModelTransparent(Scanner * scan, Scene * scn)
 	rot.z =		static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	scale.x =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	scale.y =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
-	scale.z =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
-	
-
-	
+	scale.z =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);	
 }
 
 void SceneLoader::parseDirLight(Scanner * scan, Scene * scn)
@@ -588,134 +607,12 @@ void SceneLoader::parseClearColor(Scanner * scan, Scene * scn)
 	scn->clearColor = std::move(color);
 }
 
-void SceneLoader::parseParticleEmitter(Scanner * scan, Scene * scn)
+void SceneLoader::parseEnvMap(Scanner * scan, Scene * scn)
 {
-	size_t numParticles;
-	float spawnrate;
-	float lifetime;
-	glm::vec3 position;
-	glm::vec3 direction;
-	float particlesize;
-	float emitangle;
-	glm::vec2 velocityRange;
-	glm::vec3 force;
-	float mass;
-	std::string difftex;
 
-	numParticles = static_cast<size_t>(scan->lookahead().intvalue);
-	scan->match(TokType::Int);
+}
 
-	spawnrate = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
+void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
+{
 
-	lifetime = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-
-	position.x = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-	position.y = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-	position.z = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-
-	direction.x = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-	direction.y = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-	direction.z = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-
-	particlesize = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-
-	emitangle = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-
-	velocityRange.x = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-	velocityRange.y = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-
-	force.x = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-	force.y = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-	force.z = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-
-	mass = static_cast<float>(scan->lookahead().floatvalue);
-	scan->match(TokType::Float);
-
-	difftex = scan->lookahead().value;
-	scan->match(TokType::String);
-
-	glm::vec3 colormul{1.0f, 1.0f, 1.0f};	
-
-	if (scan->lookahead().type == TokType::Float)
-	{
-		colormul.x = static_cast<float>(scan->lookahead().floatvalue);
-		scan->match(TokType::Float);
-		colormul.y = static_cast<float>(scan->lookahead().floatvalue);
-		scan->match(TokType::Float);
-		colormul.z = static_cast<float>(scan->lookahead().floatvalue);
-		scan->match(TokType::Float);
-	}
-
-	float alphaexponent = 3.0f;
-	if (scan->lookahead().type == TokType::Float)
-	{
-		alphaexponent = static_cast<float>(scan->lookahead().floatvalue);
-		scan->match(TokType::Float);
-	}
-
-	auto it = std::find_if(scn->m_textures.begin(), scn->m_textures.end(), [&difftex](const auto& e) {return e->path == difftex; });
-	Texture *diff = nullptr;
-	if (it == scn->m_textures.end())
-	{
-		int x, y, c;
-		unsigned char * data = stbi_load(difftex.c_str(), &x, &y, &c, 4);
-		if (!data)
-		{
-			throw std::logic_error("Texture file '" + difftex + "' not found.\n");
-		}
-		else
-		{
-			scn->m_textures.push_back(std::move(Texture::T2DFromData(GL_RGBA8, x, y, GL_RGBA, GL_UNSIGNED_BYTE, data, true)));
-			diff = scn->m_textures.back().get();
-			diff->path = difftex;
-			stbi_image_free(data);
-		}
-	}
-	else
-	{
-		diff = it->get();
-	}
-
-	if (!diff)
-	{
-		throw std::logic_error("Texture file '" + difftex + "' not found.\n");
-	}
-
-	scn->m_materials.push_back(std::unique_ptr<Material>(new Material(
-		diff, glm::vec4{ colormul.x, colormul.y, colormul.z, 1.0f },
-		nullptr, glm::vec4(0.0f, 0.0f, 0.0f, 1.0f),
-		nullptr, 0.0f,
-		nullptr,
-		false
-	)));
-
-	scn->m_emitters.push_back(std::unique_ptr<ParticleEmitter>(new ParticleEmitter(
-		numParticles,
-		spawnrate,
-		lifetime,
-		position,
-		direction,
-		particlesize,
-		emitangle,
-		velocityRange,
-		force,
-		mass,
-		scn->m_materials.back().get(),
-		alphaexponent
-	)));
 }

@@ -32,8 +32,6 @@ public:
 	std::vector<std::unique_ptr<Material>> m_materials;
 	//! All meshes used in the scene
 	std::vector<std::unique_ptr<Mesh>> m_meshes;
-	//! All particle emitters
-	std::vector<std::unique_ptr<ParticleEmitter>> m_emitters;
 	//! All opaque models
 	std::vector<Model> m_opaque_models;
 	//! All transparent models
@@ -48,6 +46,8 @@ public:
 	float maxlum;
 	//! Backgroud color / clear color
 	glm::vec4 clearColor;
+	//! Environment map
+	std::unique_ptr<Texture> m_env_map;
 
 	/**
 	\brief Draws every opaque model without setting material uniforms
