@@ -1,13 +1,6 @@
 #include "Window.h"
 #include <fstream>
 #include <SceneLoader.h>
-#include <OpaqueRenderer.h>
-#include <DepthPeelRenderer.h>
-#include <WeightedBlendedOITRenderer.h>
-#include <INDLLWBT.h>
-#include <INDLRWBT.h>
-#include <LinkedListWBTv2.h>
-#include <stb_image_write.h>
 
 Window::Window() :
 	GameWindow(

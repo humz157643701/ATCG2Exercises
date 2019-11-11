@@ -60,12 +60,12 @@ list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/WardRenderer.cpp")
 #list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/ParticleEmitter.cpp")
 
 #bspline class
-#list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/BSpline.h")
-#list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/BSpline.cpp")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/BSpline.h")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/BSpline.cpp")
 
 #perfdisplay
-#list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/PerfDisplay.h")
-#list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/PerfDisplay.cpp")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/PerfDisplay.h")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/PerfDisplay.cpp")
 
 ##---------------------------------framework files----------------------------------------------------------------------
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/framework/CommonTypes.h")

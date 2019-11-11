@@ -1,11 +1,14 @@
+# materials
+MATERIAL 0 "assets/materials/TAC7/happy_birthday/happy_birthday.axf"
+
 # camera
 CAMERA 0.0 0.0 2.0 0.0 0.0 0.0 0.0 1.0 0.0 90.0 0.1 100.0
 
 # opaque models
-MODEL_OPAQUE "assets/models/sponza/sponza.obj" 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.05 0.05 0.05
+MODEL_OPAQUE 1 0 0 "assets/models/uglypot.obj" 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0
 
 # transparent models
-MODEL_TRANSPARENT "assets/models/squares/squares2.obj" 0.0 1.0 0.0 0.7073883 0.0 0.7068252 0.0 1.0 1.0 1.0
+# MODEL_TRANSPARENT 1 0 0 "assets/models/uglypot.obj" 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0
 
 # lights
 DIRECTIONAL_LIGHT 10.0 1.0 1.0 1.0 -1.0 -1.0 -1.0
@@ -14,17 +17,7 @@ AMBIENT_LIGHT 0.2 1.0 1.0 1.0
 # grh-tone mapper burn out value
 MAX_LUM 5000.0
 
-# material settings
-ENABLE_NORMAL_MAPPING 0
+# clear color
+CLEAR_COLOR 0.0 0.0 0.0 0.0
 
-# depth peeling settings
-DEPTH_PEEL_MAX_PASSES 10
-
-# bucketing settings: maxbuckets initialbuckets near far
-NUM_BUCKETS 64 16 0.0 20.0
-
-# fragment list max size = fbw * fbh * x
-FRAGLIST_SIZE_MUL 16
-
-# depth weight offset
-DEPTH_WEIGHT_OFFSET 0.5
+# environment map

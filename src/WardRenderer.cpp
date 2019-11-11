@@ -25,24 +25,24 @@ void WardRenderer::render(Scene * scene, double dt, bool measure)
 	glCullFace(GL_BACK);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	shader.use();
-	scene->m_camera.bind(&shader, "camera");
+	m_opaque_shader.use();
+	scene->m_camera.bind(&m_opaque_shader, "camera");
 
 	for (size_t i = 0; i < scene->m_dirlights.size(); ++i)
-		scene->m_dirlights[i].bind(&shader, scene->m_camera.getViewMatrix(), ("dirlights[" + std::to_string(i) + "]").c_str());
-	shader.setUniform("dirlightcount", static_cast<GLint>(scene->m_dirlights.size()));
+		scene->m_dirlights[i].bind(&m_opaque_shader, scene->m_camera.getViewMatrix(), ("dirlights[" + std::to_string(i) + "]").c_str());
+	m_opaque_shader.setUniform("dirlightcount", static_cast<GLint>(scene->m_dirlights.size()));
 
 	for (size_t i = 0; i < scene->m_pointlights.size(); ++i)
-		scene->m_pointlights[i].bind(&shader, scene->m_camera.getViewMatrix(), ("pointlights[" + std::to_string(i) + "]").c_str());
-	shader.setUniform("pointlightcount", static_cast<GLint>(scene->m_pointlights.size()));
+		scene->m_pointlights[i].bind(&m_opaque_shader, scene->m_camera.getViewMatrix(), ("pointlights[" + std::to_string(i) + "]").c_str());
+	m_opaque_shader.setUniform("pointlightcount", static_cast<GLint>(scene->m_pointlights.size()));
 
 	for (size_t i = 0; i < scene->m_ambientlights.size(); ++i)
-		scene->m_ambientlights[i].bind(&shader, ("ambientlights[" + std::to_string(i) + "]").c_str());
-	shader.setUniform("ambientlightcount", static_cast<GLint>(scene->m_ambientlights.size()));
+		scene->m_ambientlights[i].bind(&m_opaque_shader, ("ambientlights[" + std::to_string(i) + "]").c_str());
+	m_opaque_shader.setUniform("ambientlightcount", static_cast<GLint>(scene->m_ambientlights.size()));
 
-	shader.setUniform("tmwhite", scene->maxlum);
+	m_opaque_shader.setUniform("tmwhite", scene->maxlum);
 
-	scene->drawOpaqueWithMaterials(&shader);
+	scene->drawOpaqueWithMaterials(&m_opaque_shader);
 	//scene->drawTransparentWithMaterials(&shader);
 }
 

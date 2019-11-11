@@ -511,12 +511,20 @@ public:
 		return m_parent;
 	}
 
-	void setParent(Transform* parent)
+	void setParent(Transform* parent, bool keepWorldTransform = true)
 	{
 		if (parent)
 		{
 			m_parent = parent;
-			leftApplyTransformMatrix(parent->getWorldToLocalMatrix());
+			if(keepWorldTransform)
+				leftApplyTransformMatrix(parent->getWorldToLocalMatrix());
+			else
+			{
+				m_ltp_dirty = true;
+				m_ltw_dirty = true;
+				m_ptl_dirty = true;
+				m_wtl_dirty = true;
+			}
 		}
 		else
 		{

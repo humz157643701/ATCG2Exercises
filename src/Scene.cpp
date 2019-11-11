@@ -49,7 +49,7 @@ Transform* Scene::getTransformByOID(std::size_t oid)
 	for(Model& m : m_transparent_models)
 	{
 		if(m.transform.getOID() == oid)
-			return &m_transform;
+			return &m.transform;
 	}
 	for(PointLight& p : m_pointlights)
 	{

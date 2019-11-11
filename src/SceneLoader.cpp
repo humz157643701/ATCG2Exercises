@@ -440,7 +440,7 @@ void SceneLoader::parseFile(Scanner * scan, Scene * scn)
 			scan->match(TokType::Name);
 			parseEnvMap(scan, scn);
 		}
-		else if (scan->lookahead().value == "AXF_MATERIAL")
+		else if (scan->lookahead().value == "MATERIAL")
 		{
 			scan->match(TokType::Name);
 			parseMaterial(scan, scn);
@@ -527,17 +527,20 @@ void SceneLoader::parseModelOpaque(Scanner * scan, Scene * scn)
 	scale.y =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	scale.z =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 
-	OBJResult res = OBJLoader::loadOBJ(path, recalcnormals, true);
+	OBJResult res = OBJLoader::loadOBJ(path, false, true);
 
 	// for this simple application we simply merge all objects/meshes from one file into one model entity.
 	Model model;
+	Material* mat = scn->getMaterialByID(mid);
+	if (mat == nullptr)
+		throw std::logic_error("SCENE LOADER: Material for model couldn't be found.");
 	for(OBJObject& o : res.objects)
 	{
 		for(OBJMesh& m : o.meshes)
 		{
 			if(!m.hasNormals)
 				OBJLoader::recalculateNormals(m);
-			scn->m_meshes.push_back(std::move(Mesh::createMesh(m.vertices, m.indices, m.atts, scn->getMaterialByID(mid))));
+			scn->m_meshes.push_back(std::move(Mesh::createMesh(m.vertices, m.indices, m.atts, mat)));
 			model.meshes.push_back(scn->m_meshes.back().get());
 		}
 	}
@@ -545,7 +548,7 @@ void SceneLoader::parseModelOpaque(Scanner * scan, Scene * scn)
 	// set transform
 	model.transform = Transform(pos, rot, scale, id);
 	if(pid != 0)
-		model.transform.setParent(scn->getTransformByOID(pid));
+		model.transform.setParent(scn->getTransformByOID(pid), false);
 
 	// add model to scene
 	scn->m_opaque_models.push_back(std::move(model));
@@ -580,17 +583,20 @@ void SceneLoader::parseModelTransparent(Scanner * scan, Scene * scn)
 	scale.y =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	scale.z =	static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 
-	OBJResult res = OBJLoader::loadOBJ(path, recalcnormals, true);
+	OBJResult res = OBJLoader::loadOBJ(path, false, true);
 
 	// for this simple application we simply merge all objects/meshes from one file into one model entity.
 	Model model;
+	Material* mat = scn->getMaterialByID(mid);
+	if (mat == nullptr)
+		throw std::logic_error("SCENE LOADER: Material for model couldn't be found.");
 	for(OBJObject& o : res.objects)
 	{
 		for(OBJMesh& m : o.meshes)
 		{
 			if(!m.hasNormals)
 				OBJLoader::recalculateNormals(m);
-			scn->m_meshes.push_back(std::move(Mesh::createMesh(m.vertices, m.indices, m.atts, scn->getMaterialByID(mid))));
+			scn->m_meshes.push_back(std::move(Mesh::createMesh(m.vertices, m.indices, m.atts, mat)));
 			model.meshes.push_back(scn->m_meshes.back().get());
 		}
 	}
@@ -598,7 +604,7 @@ void SceneLoader::parseModelTransparent(Scanner * scan, Scene * scn)
 	// set transform
 	model.transform = Transform(pos, rot, scale, id);
 	if(pid != 0)
-		model.transform.setParent(scn->getTransformByOID(pid));
+		model.transform.setParent(scn->getTransformByOID(pid), false);
 
 	// add model to scene
 	scn->m_transparent_models.push_back(std::move(model));
@@ -680,5 +686,268 @@ void SceneLoader::parseEnvMap(Scanner * scan, Scene * scn)
 
 void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 {
+	std::size_t mid;
+	std::string path;
 
+	mid = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
+	path = scan->lookahead().value; scan->match(TokType::String);
+
+	AxfReader::TextureType textures;
+	AxfReader::TextureDimType texture_dims;
+
+	if (!AxfReader::readAxF(path, textures, texture_dims))
+	{
+		throw std::logic_error(("SCENE_LOADER: Error reading AxF " + path).c_str());
+	}
+
+	/*Material mat;
+	GLenum internalformat;
+	GLenum format;
+	switch (texture_dims["diffuse_albedo"].num_channels)
+	{
+	case 1:
+		internalformat = GL_R32F;
+		format = GL_RED;
+		break;
+	case 2:
+		internalformat = GL_RG32F;
+		format = GL_RG;
+		break;
+	case 3:
+		internalformat = GL_RGB32F;
+		format = GL_RGB;
+		break;
+	case 4:
+		internalformat = GL_RGBA32F;
+		format = GL_RGBA;
+	default:
+		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
+		break;
+	}
+	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(	
+		internalformat,
+		texture_dims["diffuse_albedo"].width,
+		texture_dims["diffuse_albedo"].height,
+		format,
+		GL_FLOAT,
+		textures["diffuse_albedo"].data(),
+		true
+	);
+
+	switch (texture_dims["diffuse_albedo"].num_channels)
+	{
+	case 1:
+		internalformat = GL_R32F;
+		format = GL_RED;
+		break;
+	case 2:
+		internalformat = GL_RG32F;
+		format = GL_RG;
+		break;
+	case 3:
+		internalformat = GL_RGB32F;
+		format = GL_RGB;
+		break;
+	case 4:
+		internalformat = GL_RGBA32F;
+		format = GL_RGBA;
+	default:
+		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
+		break;
+	}
+	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
+		internalformat,
+		texture_dims["diffuse_albedo"].width,
+		texture_dims["diffuse_albedo"].height,
+		format,
+		GL_FLOAT,
+		textures["diffuse_albedo"].data(),
+		true
+	);
+
+	switch (texture_dims["diffuse_albedo"].num_channels)
+	{
+	case 1:
+		internalformat = GL_R32F;
+		format = GL_RED;
+		break;
+	case 2:
+		internalformat = GL_RG32F;
+		format = GL_RG;
+		break;
+	case 3:
+		internalformat = GL_RGB32F;
+		format = GL_RGB;
+		break;
+	case 4:
+		internalformat = GL_RGBA32F;
+		format = GL_RGBA;
+	default:
+		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
+		break;
+	}
+	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
+		internalformat,
+		texture_dims["diffuse_albedo"].width,
+		texture_dims["diffuse_albedo"].height,
+		format,
+		GL_FLOAT,
+		textures["diffuse_albedo"].data(),
+		true
+	);
+
+	switch (texture_dims["diffuse_albedo"].num_channels)
+	{
+	case 1:
+		internalformat = GL_R32F;
+		format = GL_RED;
+		break;
+	case 2:
+		internalformat = GL_RG32F;
+		format = GL_RG;
+		break;
+	case 3:
+		internalformat = GL_RGB32F;
+		format = GL_RGB;
+		break;
+	case 4:
+		internalformat = GL_RGBA32F;
+		format = GL_RGBA;
+	default:
+		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
+		break;
+	}
+	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
+		internalformat,
+		texture_dims["diffuse_albedo"].width,
+		texture_dims["diffuse_albedo"].height,
+		format,
+		GL_FLOAT,
+		textures["diffuse_albedo"].data(),
+		true
+	);
+
+	switch (texture_dims["diffuse_albedo"].num_channels)
+	{
+	case 1:
+		internalformat = GL_R32F;
+		format = GL_RED;
+		break;
+	case 2:
+		internalformat = GL_RG32F;
+		format = GL_RG;
+		break;
+	case 3:
+		internalformat = GL_RGB32F;
+		format = GL_RGB;
+		break;
+	case 4:
+		internalformat = GL_RGBA32F;
+		format = GL_RGBA;
+	default:
+		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
+		break;
+	}
+	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
+		internalformat,
+		texture_dims["diffuse_albedo"].width,
+		texture_dims["diffuse_albedo"].height,
+		format,
+		GL_FLOAT,
+		textures["diffuse_albedo"].data(),
+		true
+	);
+
+	switch (texture_dims["diffuse_albedo"].num_channels)
+	{
+	case 1:
+		internalformat = GL_R32F;
+		format = GL_RED;
+		break;
+	case 2:
+		internalformat = GL_RG32F;
+		format = GL_RG;
+		break;
+	case 3:
+		internalformat = GL_RGB32F;
+		format = GL_RGB;
+		break;
+	case 4:
+		internalformat = GL_RGBA32F;
+		format = GL_RGBA;
+	default:
+		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
+		break;
+	}
+	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
+		internalformat,
+		texture_dims["diffuse_albedo"].width,
+		texture_dims["diffuse_albedo"].height,
+		format,
+		GL_FLOAT,
+		textures["diffuse_albedo"].data(),
+		true
+	);
+
+	switch (texture_dims["diffuse_albedo"].num_channels)
+	{
+	case 1:
+		internalformat = GL_R32F;
+		format = GL_RED;
+		break;
+	case 2:
+		internalformat = GL_RG32F;
+		format = GL_RG;
+		break;
+	case 3:
+		internalformat = GL_RGB32F;
+		format = GL_RGB;
+		break;
+	case 4:
+		internalformat = GL_RGBA32F;
+		format = GL_RGBA;
+	default:
+		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
+		break;
+	}
+	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
+		internalformat,
+		texture_dims["diffuse_albedo"].width,
+		texture_dims["diffuse_albedo"].height,
+		format,
+		GL_FLOAT,
+		textures["diffuse_albedo"].data(),
+		true
+	);
+
+	switch (texture_dims["diffuse_albedo"].num_channels)
+	{
+	case 1:
+		internalformat = GL_R32F;
+		format = GL_RED;
+		break;
+	case 2:
+		internalformat = GL_RG32F;
+		format = GL_RG;
+		break;
+	case 3:
+		internalformat = GL_RGB32F;
+		format = GL_RGB;
+		break;
+	case 4:
+		internalformat = GL_RGBA32F;
+		format = GL_RGBA;
+	default:
+		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
+		break;
+	}
+	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
+		internalformat,
+		texture_dims["diffuse_albedo"].width,
+		texture_dims["diffuse_albedo"].height,
+		format,
+		GL_FLOAT,
+		textures["diffuse_albedo"].data(),
+		true
+	);*/
 }

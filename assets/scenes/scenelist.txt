@@ -1,8 +1,1 @@
 scene.txt
-scene2.txt
-scene4.txt
-scene6.txt
-scene7.txt
-scene8.txt
-scene9.txt
-scene10.txt

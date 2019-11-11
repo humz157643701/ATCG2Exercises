@@ -26,7 +26,7 @@ public:
 	\param dt Last frame time
 	\param measure Enables/disables the measurement for this frame
 	*/
-	virtual void render(Scene* scene, double dt, bool measure) = 0;
+	virtual void render(Scene* scene, double dt, bool measure = false) = 0;
 	/*!
 	\brief Returns the last measured time for transparent rendering and merging in milliseconds
 	*/
