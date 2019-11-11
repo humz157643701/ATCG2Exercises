@@ -699,6 +699,7 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	{
 		throw std::logic_error(("SCENE_LOADER: Error reading AxF " + path).c_str());
 	}
+	int dummy = 0;
 
 	/*Material mat;
 	GLenum internalformat;
