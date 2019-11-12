@@ -704,6 +704,11 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	Material mat;
 	GLenum internalformat;
 	GLenum format;
+
+	mat.m_mid = mid;
+
+	if (textures.find("diffuse") == textures.end())
+		throw std::logic_error("SCENE_LOADER: No diffuse texture found in .axf file.");
 	switch (texture_dims["diffuse"].num_channels)
 	{
 	case 1:
@@ -735,9 +740,16 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		true
 	);
 
+	diff_albedo->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	diff_albedo->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	diff_albedo->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+	diff_albedo->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+
 	scn->m_textures.push_back(std::move(diff_albedo));
 	mat.m_diffuse_albedo = scn->m_textures.back().get();
 
+	if (textures.find("specular") == textures.end())
+		throw std::logic_error("SCENE_LOADER: No specular texture found in .axf file.");
 	switch (texture_dims["specular"].num_channels)
 	{
 	case 1:
@@ -756,7 +768,7 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		internalformat = GL_RGBA32F;
 		format = GL_RGBA;
 	default:
-		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
+		throw std::logic_error("SCENE_LOADER: Invalid channel count for specular albedo.");
 		break;
 	}
 	std::unique_ptr<Texture> specular_albedo = Texture::T2DFromData(
@@ -769,10 +781,17 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		true
 	);
 
+	specular_albedo->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	specular_albedo->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	specular_albedo->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+	specular_albedo->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+
 	scn->m_textures.push_back(std::move(specular_albedo));
 	mat.m_specular_albedo = scn->m_textures.back().get();
 
-	switch (texture_dims["diffuse_albedo"].num_channels)
+	if (textures.find("aniso") == textures.end())
+		throw std::logic_error("SCENE_LOADER: No aniso texture found in .axf file.");
+	switch (texture_dims["aniso"].num_channels)
 	{
 	case 1:
 		internalformat = GL_R32F;
@@ -790,20 +809,76 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		internalformat = GL_RGBA32F;
 		format = GL_RGBA;
 	default:
-		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
+		throw std::logic_error("SCENE_LOADER: Invalid channel count for aniso.");
 		break;
 	}
-	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
+	std::unique_ptr<Texture> aniso = Texture::T2DFromData(
 		internalformat,
-		texture_dims["diffuse_albedo"].width,
-		texture_dims["diffuse_albedo"].height,
+		texture_dims["aniso"].width,
+		texture_dims["aniso"].height,
 		format,
 		GL_FLOAT,
-		textures["diffuse_albedo"].data(),
+		textures["aniso"].data(),
 		true
 	);
 
-	switch (texture_dims["diffuse_albedo"].num_channels)
+	aniso->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	aniso->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	aniso->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+	aniso->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	scn->m_textures.push_back(std::move(aniso));
+	mat.m_aniso_rotation = scn->m_textures.back().get();
+
+	if (textures.find("displacement") != textures.end())
+	{
+		switch (texture_dims["displacement"].num_channels)
+		{
+		case 1:
+			internalformat = GL_R32F;
+			format = GL_RED;
+			break;
+		case 2:
+			internalformat = GL_RG32F;
+			format = GL_RG;
+			break;
+		case 3:
+			internalformat = GL_RGB32F;
+			format = GL_RGB;
+			break;
+		case 4:
+			internalformat = GL_RGBA32F;
+			format = GL_RGBA;
+		default:
+			throw std::logic_error("SCENE_LOADER: Invalid channel count for displacement.");
+			break;
+		}
+		std::unique_ptr<Texture> displacement = Texture::T2DFromData(
+			internalformat,
+			texture_dims["displacement"].width,
+			texture_dims["displacement"].height,
+			format,
+			GL_FLOAT,
+			textures["displacement"].data(),
+			true
+		);
+
+		displacement->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		displacement->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		displacement->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+		displacement->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+		scn->m_textures.push_back(std::move(displacement));
+		mat.m_displacement = scn->m_textures.back().get();
+	}
+	else
+	{
+		mat.m_displacement = nullptr;
+	}
+
+	if (textures.find("fresnel") == textures.end())
+		throw std::logic_error("SCENE_LOADER: No fresnel texture found in .axf file.");
+	switch (texture_dims["fresnel"].num_channels)
 	{
 	case 1:
 		internalformat = GL_R32F;
@@ -821,20 +896,30 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		internalformat = GL_RGBA32F;
 		format = GL_RGBA;
 	default:
-		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
+		throw std::logic_error("SCENE_LOADER: Invalid channel count for fresnel.");
 		break;
 	}
-	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
+	std::unique_ptr<Texture> fresnel = Texture::T2DFromData(
 		internalformat,
-		texture_dims["diffuse_albedo"].width,
-		texture_dims["diffuse_albedo"].height,
+		texture_dims["fresnel"].width,
+		texture_dims["fresnel"].height,
 		format,
 		GL_FLOAT,
-		textures["diffuse_albedo"].data(),
+		textures["fresnel"].data(),
 		true
 	);
 
-	switch (texture_dims["diffuse_albedo"].num_channels)
+	fresnel->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	fresnel->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	fresnel->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+	fresnel->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	scn->m_textures.push_back(std::move(fresnel));
+	mat.m_fresnel_f0 = scn->m_textures.back().get();
+
+	if (textures.find("lobes") == textures.end())
+		throw std::logic_error("SCENE_LOADER: No roughness texture found in .axf file.");
+	switch (texture_dims["lobes"].num_channels)
 	{
 	case 1:
 		internalformat = GL_R32F;
@@ -852,20 +937,30 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		internalformat = GL_RGBA32F;
 		format = GL_RGBA;
 	default:
-		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
+		throw std::logic_error("SCENE_LOADER: Invalid channel count for roughness.");
 		break;
 	}
-	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
+	std::unique_ptr<Texture> roughness = Texture::T2DFromData(
 		internalformat,
-		texture_dims["diffuse_albedo"].width,
-		texture_dims["diffuse_albedo"].height,
+		texture_dims["lobes"].width,
+		texture_dims["lobes"].height,
 		format,
 		GL_FLOAT,
-		textures["diffuse_albedo"].data(),
+		textures["lobes"].data(),
 		true
 	);
 
-	switch (texture_dims["diffuse_albedo"].num_channels)
+	roughness->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	roughness->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	roughness->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+	roughness->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	scn->m_textures.push_back(std::move(roughness));
+	mat.m_roughness = scn->m_textures.back().get();
+
+	if (textures.find("normal") == textures.end())
+		throw std::logic_error("SCENE_LOADER: No normal texture found in .axf file.");
+	switch (texture_dims["normal"].num_channels)
 	{
 	case 1:
 		internalformat = GL_R32F;
@@ -883,78 +978,72 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		internalformat = GL_RGBA32F;
 		format = GL_RGBA;
 	default:
-		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
+		throw std::logic_error("SCENE_LOADER: Invalid channel count for normal.");
 		break;
 	}
-	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
+	std::unique_ptr<Texture> normal = Texture::T2DFromData(
 		internalformat,
-		texture_dims["diffuse_albedo"].width,
-		texture_dims["diffuse_albedo"].height,
+		texture_dims["normal"].width,
+		texture_dims["normal"].height,
 		format,
 		GL_FLOAT,
-		textures["diffuse_albedo"].data(),
+		textures["normal"].data(),
 		true
 	);
 
-	switch (texture_dims["diffuse_albedo"].num_channels)
-	{
-	case 1:
-		internalformat = GL_R32F;
-		format = GL_RED;
-		break;
-	case 2:
-		internalformat = GL_RG32F;
-		format = GL_RG;
-		break;
-	case 3:
-		internalformat = GL_RGB32F;
-		format = GL_RGB;
-		break;
-	case 4:
-		internalformat = GL_RGBA32F;
-		format = GL_RGBA;
-	default:
-		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
-		break;
-	}
-	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
-		internalformat,
-		texture_dims["diffuse_albedo"].width,
-		texture_dims["diffuse_albedo"].height,
-		format,
-		GL_FLOAT,
-		textures["diffuse_albedo"].data(),
-		true
-	);
+	normal->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	normal->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	normal->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+	normal->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	switch (texture_dims["diffuse_albedo"].num_channels)
+	scn->m_textures.push_back(std::move(normal));
+	mat.m_normals = scn->m_textures.back().get();
+
+	if (textures.find("transparency") != textures.end())
 	{
-	case 1:
-		internalformat = GL_R32F;
-		format = GL_RED;
-		break;
-	case 2:
-		internalformat = GL_RG32F;
-		format = GL_RG;
-		break;
-	case 3:
-		internalformat = GL_RGB32F;
-		format = GL_RGB;
-		break;
-	case 4:
-		internalformat = GL_RGBA32F;
-		format = GL_RGBA;
-	default:
-		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
-		break;
+		switch (texture_dims["transparency"].num_channels)
+		{
+		case 1:
+			internalformat = GL_R32F;
+			format = GL_RED;
+			break;
+		case 2:
+			internalformat = GL_RG32F;
+			format = GL_RG;
+			break;
+		case 3:
+			internalformat = GL_RGB32F;
+			format = GL_RGB;
+			break;
+		case 4:
+			internalformat = GL_RGBA32F;
+			format = GL_RGBA;
+		default:
+			throw std::logic_error("SCENE_LOADER: Invalid channel count for transparency.");
+			break;
+		}
+		std::unique_ptr<Texture> transparency = Texture::T2DFromData(
+			internalformat,
+			texture_dims["transparency"].width,
+			texture_dims["transparency"].height,
+			format,
+			GL_FLOAT,
+			textures["transparency"].data(),
+			true
+		);
+
+		transparency->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		transparency->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		transparency->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+		transparency->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+		scn->m_textures.push_back(std::move(transparency));
+		mat.m_transparency = scn->m_textures.back().get();
 	}
-	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
-		internalformat,
-		texture_dims["diffuse_albedo"].width,
-		texture_dims["diffuse_albedo"].height,
-		format,
-		GL_FLOAT,
-		textures["diffuse_albedo"].data(),
-		true
-	);*/
+	else
+	{
+		mat.m_transparency = nullptr;
+	}
+
+	scn->m_materials.push_back(std::unique_ptr<Material>(new Material(mat)));
 }
