@@ -681,7 +681,7 @@ void SceneLoader::parseClearColor(Scanner * scan, Scene * scn)
 
 void SceneLoader::parseEnvMap(Scanner * scan, Scene * scn)
 {
-
+	// support spherical and cube maps?
 }
 
 void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)

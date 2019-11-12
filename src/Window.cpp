@@ -1,6 +1,7 @@
 #include "Window.h"
 #include <fstream>
 #include <SceneLoader.h>
+#include <WardRenderer.h>
 
 Window::Window() :
 	GameWindow(
@@ -9,7 +10,7 @@ Window::Window() :
 		false,
 		false,
 		4,
-		4,
+		3,
 		"Ward Renderer",
 		4
 	),
@@ -107,7 +108,9 @@ GLvoid Window::init()
 	m_current_spline_pos = 0.0f;
 	m_spline_speed = 0.1f;
 
-	// TODO: create renderer
+	// create renderer
+	m_renderer = std::unique_ptr<WardRenderer>(new WardRenderer());
+	m_renderer.init();
 
 	m_updateScene = true;
 

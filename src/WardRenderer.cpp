@@ -43,7 +43,6 @@ void WardRenderer::render(Scene * scene, double dt, bool measure)
 	m_opaque_shader.setUniform("tmwhite", scene->maxlum);
 
 	scene->drawOpaqueWithMaterials(&m_opaque_shader);
-	//scene->drawTransparentWithMaterials(&shader);
 }
 
 double WardRenderer::getLastTransparentRenderTime()
