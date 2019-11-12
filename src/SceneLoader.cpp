@@ -701,10 +701,10 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	}
 	int dummy = 0;
 
-	/*Material mat;
+	Material mat;
 	GLenum internalformat;
 	GLenum format;
-	switch (texture_dims["diffuse_albedo"].num_channels)
+	switch (texture_dims["diffuse"].num_channels)
 	{
 	case 1:
 		internalformat = GL_R32F;
@@ -727,15 +727,18 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	}
 	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(	
 		internalformat,
-		texture_dims["diffuse_albedo"].width,
-		texture_dims["diffuse_albedo"].height,
+		texture_dims["diffuse"].width,
+		texture_dims["diffuse"].height,
 		format,
 		GL_FLOAT,
-		textures["diffuse_albedo"].data(),
+		textures["diffuse"].data(),
 		true
 	);
 
-	switch (texture_dims["diffuse_albedo"].num_channels)
+	scn->m_textures.push_back(std::move(diff_albedo));
+	mat.m_diffuse_albedo = scn->m_textures.back().get();
+
+	switch (texture_dims["specular"].num_channels)
 	{
 	case 1:
 		internalformat = GL_R32F;
@@ -756,15 +759,18 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
 		break;
 	}
-	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(
+	std::unique_ptr<Texture> specular_albedo = Texture::T2DFromData(
 		internalformat,
-		texture_dims["diffuse_albedo"].width,
-		texture_dims["diffuse_albedo"].height,
+		texture_dims["specular"].width,
+		texture_dims["specular"].height,
 		format,
 		GL_FLOAT,
-		textures["diffuse_albedo"].data(),
+		textures["specular"].data(),
 		true
 	);
+
+	scn->m_textures.push_back(std::move(specular_albedo));
+	mat.m_specular_albedo = scn->m_textures.back().get();
 
 	switch (texture_dims["diffuse_albedo"].num_channels)
 	{
