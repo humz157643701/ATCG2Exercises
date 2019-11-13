@@ -2,18 +2,18 @@
 MATERIAL 0 "assets/materials/TAC7/happy_birthday/happy_birthday.axf"
 
 # camera
-CAMERA 0.0 0.0 2.0 0.0 0.0 0.0 0.0 1.0 0.0 90.0 0.1 100.0
+CAMERA 1 0 0.0 0.0 2.0 0.0 0.0 0.0 0.0 1.0 0.0 90.0 0.1 100.0
 
 # opaque models
-MODEL_OPAQUE 1 0 0 "assets/models/uglypot.obj" 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0
+MODEL_OPAQUE 2 0 0 "assets/models/uglypot.obj" 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0
 
 # transparent models
 # MODEL_TRANSPARENT 1 0 0 "assets/models/uglypot.obj" 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0
 
 # lights
-DIRECTIONAL_LIGHT 10.0 1.0 1.0 1.0 -1.0 -1.0 -1.0
+DIRECTIONAL_LIGHT 10.0 10.0 10.0 -1.0 -1.0 -1.0
 #POINT_LIGHT 7.0 0.0 0.0 1.0 4.0 0.0 0.0
-AMBIENT_LIGHT 0.2 1.0 1.0 1.0
+AMBIENT_LIGHT 1.0 1.0 1.0
 # grh-tone mapper burn out value
 MAX_LUM 5000.0
 

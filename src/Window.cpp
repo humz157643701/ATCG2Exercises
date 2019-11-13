@@ -110,7 +110,6 @@ GLvoid Window::init()
 
 	// create renderer
 	m_renderer = std::unique_ptr<WardRenderer>(new WardRenderer());
-	m_renderer.init();
 
 	m_updateScene = true;
 
@@ -135,6 +134,7 @@ void Window::onFrameBufferResize(int width, int height)
 {
 	m_scene->m_camera.setViewport(width, height);
 	// recreate renderer
+	m_renderer.reset(new WardRenderer());
 }
 
 void Window::onKey(Key key, Action action, Modifier modifier)

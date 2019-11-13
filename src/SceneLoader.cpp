@@ -689,6 +689,9 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	std::size_t mid;
 	std::string path;
 
+	float max_aniso;
+	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &max_aniso);
+
 	mid = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
 	path = scan->lookahead().value; scan->match(TokType::String);
 
@@ -744,6 +747,7 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	diff_albedo->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	diff_albedo->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 	diff_albedo->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+	diff_albedo->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
 
 	scn->m_textures.push_back(std::move(diff_albedo));
 	mat.m_diffuse_albedo = scn->m_textures.back().get();
@@ -785,6 +789,7 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	specular_albedo->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	specular_albedo->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 	specular_albedo->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+	specular_albedo->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
 
 	scn->m_textures.push_back(std::move(specular_albedo));
 	mat.m_specular_albedo = scn->m_textures.back().get();
@@ -826,6 +831,7 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	aniso->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	aniso->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 	aniso->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+	aniso->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
 
 	scn->m_textures.push_back(std::move(aniso));
 	mat.m_aniso_rotation = scn->m_textures.back().get();
@@ -867,6 +873,7 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		displacement->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		displacement->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 		displacement->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+		displacement->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
 
 		scn->m_textures.push_back(std::move(displacement));
 		mat.m_displacement = scn->m_textures.back().get();
@@ -913,6 +920,7 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	fresnel->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	fresnel->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 	fresnel->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+	fresnel->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
 
 	scn->m_textures.push_back(std::move(fresnel));
 	mat.m_fresnel_f0 = scn->m_textures.back().get();
@@ -954,6 +962,7 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	roughness->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	roughness->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 	roughness->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+	roughness->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
 
 	scn->m_textures.push_back(std::move(roughness));
 	mat.m_roughness = scn->m_textures.back().get();
@@ -995,6 +1004,7 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	normal->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	normal->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 	normal->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+	normal->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
 
 	scn->m_textures.push_back(std::move(normal));
 	mat.m_normals = scn->m_textures.back().get();
@@ -1036,6 +1046,7 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		transparency->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		transparency->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 		transparency->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+		transparency->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
 
 		scn->m_textures.push_back(std::move(transparency));
 		mat.m_transparency = scn->m_textures.back().get();
