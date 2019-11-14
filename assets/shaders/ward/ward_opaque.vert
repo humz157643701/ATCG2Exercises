@@ -24,7 +24,7 @@ out struct VertexData
     vec3 viewspacePosition;
     vec2 uv;
     vec3 normal;
-    mat3 tbn;
+    vec3 tangent;
 } vertexData;
     
 void main()
@@ -41,10 +41,6 @@ void main()
     vertexData.viewspacePosition = vpos.xyz;
     vertexData.normal = N;
     vertexData.uv = uv;
- 
-    vec3 T = normalize(nmat * tangent);
-    T = normalize(T - dot(T, N) * N);
-    vec3 B = normalize(cross(N, T));       
-    mat3 tbn = mat3(T, B, N);
-    vertexData.tbn = tbn;  
+
+    vertexData.tangent = normalize(nmat * tangent);
 }

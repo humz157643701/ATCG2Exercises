@@ -38,12 +38,12 @@ Material::Material(
 
 void Material::bind(ShaderProgram * _shader)
 {
-	_shader->bindTex("material.diffuse_albedo", m_diffuse_albedo);
-	_shader->bindTex("material.normals", m_normals);
-	_shader->bindTex("material.specular_albedo", m_specular_albedo);
-	_shader->bindTex("material.roughness", m_roughness);
-	_shader->bindTex("material.aniso_rotation", m_aniso_rotation);
-	_shader->bindTex("material.fresnel_f0", m_fresnel_f0);
-	_shader->bindTex("material.displacement", m_displacement);
-	_shader->bindTex("material.transparency", m_transparency);
+	_shader->bindTex("material.s_diffuse_albedo", m_diffuse_albedo);
+	_shader->bindTex("material.s_normals", m_normals);
+	_shader->bindTex("material.s_specular_albedo", m_specular_albedo);
+	_shader->bindTex("material.s_roughness", m_roughness);
+	_shader->bindTex("material.s_aniso_rotation", m_aniso_rotation);
+	_shader->bindTex("material.s_fresnel_f0", m_fresnel_f0);
+	_shader->bindTex("material.s_displacement", m_displacement);
+	_shader->bindTex("material.s_transparency", m_transparency);
 }

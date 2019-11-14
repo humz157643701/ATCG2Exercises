@@ -62,9 +62,21 @@ read_hdf5_array(HighFive::DataSet& dataset, std::vector<T>& data, dims_t& dims)
     }
     data.resize(num_elements);
     dataset.read(&data[0]);
-    dims.height = dims_hdf5[0];
-    dims.width = dims_hdf5[1];
-    dims.num_channels = dims_hdf5[2];
+
+    // handle single value cases like uniform fresnel
+    if (dims_hdf5.size() == 1)
+    {
+        dims.height = dims_hdf5[0];
+        dims.width = 1;
+        dims.num_channels = 1;
+    }
+    else
+    {
+        dims.height = dims_hdf5[0];
+        dims.width = dims_hdf5[1];
+        dims.num_channels = dims_hdf5[2];
+    }
+
     return true;
 }
 

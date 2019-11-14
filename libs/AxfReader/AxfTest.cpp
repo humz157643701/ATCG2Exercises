@@ -9,7 +9,7 @@ int main()
 {
     std::cout << "start AxfReader test" << std::endl << std::endl;
 
-    std::string axfFilename = "happy_birthday.axf";
+    std::string axfFilename = "../happy_birthday.axf";
 
     // textures are stored in a map from texture names to float vectors holding the raw pixel values
     AxfReader::TextureType textures;
@@ -37,9 +37,10 @@ int main()
     {
         std::cout << "key: " << std::setw(15) << std::left << pair.first
                   << " values: " << pair.second[0];
-        for (size_t i = 1; i < 6; i++)
+
+        for (size_t i = 1; i < 6 && i < pair.second.size(); i++)
         {
-                std::cout << ", " << pair.second[i];
+            std::cout << ", " << pair.second[i];
         }
         std::cout << std::endl;
     }

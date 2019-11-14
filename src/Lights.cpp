@@ -3,7 +3,7 @@
 
 bool DirectionalLight::bind(ShaderProgram * shader, const glm::mat4& mat, const char* instancename)
 {
-	bool success = shader->setUniform((std::string(instancename) + ".color").c_str(), color) && success;
+	bool success = shader->setUniform((std::string(instancename) + ".color").c_str(), color);
 	success = shader->setUniform((std::string(instancename) + ".direction").c_str(), glm::vec3(mat * glm::vec4(transform.getDirection(), 0.0f))) && success;
 	return success;
 }
@@ -22,7 +22,7 @@ DirectionalLight::DirectionalLight() :
 
 bool PointLight::bind(ShaderProgram * shader, const glm::mat4& mat, const char* instancename)
 {
-	bool success = shader->setUniform((std::string(instancename) + ".color").c_str(), color) && success;
+	bool success = shader->setUniform((std::string(instancename) + ".color").c_str(), color);
 	success = shader->setUniform((std::string(instancename) + ".position").c_str(), glm::vec3(mat * glm::vec4(transform.getWorldPosition(), 1.0f))) && success;
 	return success;
 }
@@ -41,7 +41,7 @@ PointLight::PointLight() :
 
 bool AmbientLight::bind(ShaderProgram * shader, const char * instancename)
 {
-	bool success = shader->setUniform((std::string(instancename) + ".color").c_str(), color) && success;
+	bool success = shader->setUniform((std::string(instancename) + ".color").c_str(), color);
 	return success;
 }
 
