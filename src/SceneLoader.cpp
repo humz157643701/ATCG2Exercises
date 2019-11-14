@@ -492,8 +492,8 @@ void SceneLoader::parseCamera(Scanner * scan, Scene * scn)
 
 	glm::mat4 viewmat = glm::lookAt(p, l, u);
 
-	scn->m_camera.setParameters(800, 600, glm::radians(fov), near, far);
-	scn->m_camera.transform.setTransformMatrix(glm::inverse(viewmat));
+	scn->m_camera.transform = Transform(glm::inverse(viewmat), id);
+	scn->m_camera.setParameters(800, 600, glm::radians(fov), near, far);	
 	if(pid != 0)
 		scn->m_camera.transform.setParent(scn->getTransformByOID(pid));
 }

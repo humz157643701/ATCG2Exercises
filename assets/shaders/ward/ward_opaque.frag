@@ -130,11 +130,11 @@ void main()
     // gram-schmidt orthogonalize tangent, build orthonormal tangent basis
     vsp_vertex_tangent = normalize(vsp_vertex_tangent - dot(vsp_vertex_tangent, vsp_vertex_normal) * vsp_vertex_normal);
     vec3 vsp_vertex_bitangent = normalize(cross(vsp_vertex_normal, vsp_vertex_tangent));
-    vsp_vertex_bitangent *= sign(dot(vsp_vertex_bitangent, vsp_vertex_normal));
+    vsp_vertex_bitangent *= sign(dot(cross(vsp_vertex_tangent, vsp_vertex_bitangent), vsp_vertex_normal));
     // tangent to view space
     mat3 tbn = mat3(vsp_vertex_tangent, vsp_vertex_bitangent, vsp_vertex_normal);
     // view to tangent space
-    mat3 itbn = transpose(tbn);       
+    mat3 itbn = transpose(tbn);     
    
     //prepare texture coordinate
     vec2 tc = vertexData.uv;
@@ -155,15 +155,18 @@ void main()
     vec3 vsp_bump_tangent = normalize(vsp_vertex_tangent - dot(vsp_vertex_tangent, vsp_bump_normal) * vsp_bump_normal);
     // calculate bitangent
     vec3 vsp_bump_bitangent = normalize(cross(vsp_bump_normal, vsp_bump_tangent));
-    vsp_bump_bitangent *= sign(dot(vsp_bump_bitangent, vsp_bump_normal));
+    vsp_bump_bitangent *= sign(dot(cross(vsp_bump_tangent, vsp_bump_bitangent), vsp_bump_normal));
     // change of basis matrices for perturbed tangent space
     mat3 bump_tbn = mat3(vsp_bump_tangent, vsp_bump_bitangent, vsp_bump_normal);
     mat3 bump_itbn = transpose(bump_tbn);
 
+    // color = vec4(vsp_bump_normal, 1.0);
+    // return;  
+
     //prepare vectors
     vec3 vsp_P = vertexData.viewspacePosition;    
     vec3 vsp_V = normalize(-vsp_P);
-    vec3 tsp_V = itbn * vsp_V;
+    vec3 tsp_V = bump_itbn * vsp_V;
 
     //directional lights
     for(int i = 0; i < dirlightcount; ++i)
@@ -216,7 +219,7 @@ vec3 Li_ambient_light(int i)
 
 float fresnelSchlick(vec3 H, vec3 V, float F0)
 {
-    float cos_thetha_v = dot(H, V);
+    float cos_thetha_v = max(dot(H, V), 0.0);
     return F0 + (1.0 - F0) * pow(1.0 - max(cos_thetha_v, 0.0f), 5.0);
 }
 
@@ -259,7 +262,7 @@ vec3 brdf(
  
 vec3 ambientShade(vec3 diffuse_albedo, float fresnel_f0)
 {
-    return diffuse_albedo;
+    return diffuse_albedo * (1.0 - fresnel_f0);
 }
 
 vec3 TM(vec3 l)
