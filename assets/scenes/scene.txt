@@ -1,21 +1,23 @@
 # materials
 MATERIAL 0 "assets/materials/TAC7/slate/slate.axf"
+MATERIAL 1 "assets/materials/TAC7/happy_birthday/happy_birthday.axf"
 
 # camera
 CAMERA 1 0 0.0 0.0 2.0 0.0 0.0 0.0 0.0 1.0 0.0 90.0 0.1 100.0
 
 # opaque models
-MODEL_OPAQUE 2 0 0 "assets/models/uglypot.obj" 0.0 0.0 0.0 0.0 1.0 0.0 0.0 1.0 1.0 1.0
+MODEL_OPAQUE 2 0 0 "assets/models/uglypot.obj" 0.0 0.0 0.0 0.0 0.0 1.0 0.0 1.0 1.0 1.0
+MODEL_OPAQUE 4 0 1 "assets/models/uglypot.obj" 4.0 0.0 0.0 0.0 0.0 1.0 0.0 1.0 1.0 1.0
 
 # transparent models
 # MODEL_TRANSPARENT 1 0 0 "assets/models/uglypot.obj" 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0
 
 # lights
 DIRECTIONAL_LIGHT 3.14 3.14 3.14 -1.0 -2.0 -0.5
-# POINT_LIGHT 3 1 4.0 4.0 4.0 0.5 0.5 2.0
+POINT_LIGHT 3 1 4.0 4.0 4.0 0.5 0.5 2.0
 AMBIENT_LIGHT 0.05 0.05 0.05
 # exposure
-TM_EXPOSURE 0.95
+TM_EXPOSURE 0.98
 
 # clear color
 CLEAR_COLOR 0.0 0.0 0.0 0.0
