@@ -445,10 +445,10 @@ void SceneLoader::parseFile(Scanner * scan, Scene * scn)
 			scan->match(TokType::Name);
 			parseMaterial(scan, scn);
 		}
-		else if (scan->lookahead().value == "MAX_LUM")
+		else if (scan->lookahead().value == "TM_EXPOSURE")
 		{
 			scan->match(TokType::Name);
-			parseMaxLum(scan, scn);
+			parseExposure(scan, scn);
 		}
 		else if (scan->lookahead().value == "CLEAR_COLOR")
 		{
@@ -663,10 +663,10 @@ void SceneLoader::parseAmbientLight(Scanner * scan, Scene * scn)
 	scn->m_ambientlights.push_back(AmbientLight(color));
 }
 
-void SceneLoader::parseMaxLum(Scanner * scan, Scene * scn)
+void SceneLoader::parseExposure(Scanner * scan, Scene * scn)
 {
-	float maxlum = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
-	scn->maxlum = maxlum;
+	float exposure = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
+	scn->tm_exposure = exposure;
 }
 
 void SceneLoader::parseClearColor(Scanner * scan, Scene * scn)

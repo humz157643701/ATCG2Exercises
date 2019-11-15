@@ -42,8 +42,8 @@ public:
 	std::vector<PointLight> m_pointlights;
 	//! All ambient lights
 	std::vector<AmbientLight> m_ambientlights;
-	//! Maximum luminance at which the tone mapping step outputs white
-	float maxlum;
+	//! Exposure value for tone mapping
+	float tm_exposure;
 	//! Backgroud color / clear color
 	glm::vec4 clearColor;
 	//! Environment map

@@ -110,7 +110,7 @@ private:
 	static void parseDirLight(Scanner* scan, Scene* scn);
 	static void parsePointLight(Scanner* scan, Scene* scn);
 	static void parseAmbientLight(Scanner* scan, Scene* scn);
-	static void parseMaxLum(Scanner* scan, Scene* scn);	
+	static void parseExposure(Scanner* scan, Scene* scn);	
 	static void parseClearColor(Scanner* scan, Scene* scn);
 	static void parseMaterial(Scanner* scan, Scene* scn);
 	static void parseEnvMap(Scanner* scan, Scene* scn);

@@ -40,7 +40,7 @@ void WardRenderer::render(Scene * scene, double dt, bool measure)
 		scene->m_ambientlights[i].bind(&m_opaque_shader, ("ambientlights[" + std::to_string(i) + "]").c_str());
 	m_opaque_shader.setUniform("ambientlightcount", static_cast<GLint>(scene->m_ambientlights.size()));
 
-	m_opaque_shader.setUniform("tmwhite", scene->maxlum);
+	m_opaque_shader.setUniform("exposure", scene->tm_exposure);
 
 	scene->drawOpaqueWithMaterials(&m_opaque_shader);
 }

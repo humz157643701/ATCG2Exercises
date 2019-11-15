@@ -76,7 +76,7 @@ uniform int ambientlightcount;
 uniform Material material;
 
 //tone mapping
-uniform float tmwhite;
+uniform float exposure;
 
 //fragment shader output -----------------------------------------------------------------------------------------------
 out vec4 color;
@@ -160,9 +160,8 @@ void main()
     // change of basis matrices for perturbed tangent space
     mat3 bump_tbn = mat3(vsp_bump_tangent, vsp_bump_bitangent, vsp_bump_normal);
     mat3 bump_itbn = transpose(bump_tbn);
-
-    // color = vec4(vsp_bump_normal, 1.0);
-    // return;  
+    mat3 R = rotationZ(aniso_rotation);
+    bump_itbn = R * bump_itbn;  
 
     //prepare vectors
     vec3 vsp_P = vertexData.viewspacePosition;    
@@ -246,14 +245,12 @@ vec3 brdf(
     vec3 kd = diffuse_albedo / PI;
 
     // specular part
-    vec3 H_hat = tsp_L + tsp_V;
-    vec3 H = normalize(H_hat);
-    vec3 H_prime = rotationZ(aniso_rot) * H_hat;
-    float LdotH_prime_2 = abs(dot(tsp_L, H_prime)) * abs(dot(tsp_L, H_prime));    
-    float Hz_prime_2 = H_prime.z * H_prime.z;
+    vec3 H = normalize(tsp_L + tsp_V);    
+    float LdotH_prime_2 = dot(tsp_L, H) * dot(tsp_L, H);    
+    float Hz_prime_2 = H.z * H.z;
     float Hz_prime_4 = Hz_prime_2 * Hz_prime_2;
-    float Hx_prime_alphax_2 = (H_prime.x / roughness.x) * (H_prime.x / roughness.x);
-    float Hy_prime_alphay_2 = (H_prime.y / roughness.y) * (H_prime.y / roughness.y);
+    float Hx_prime_alphax_2 = (H.x / roughness.x) * (H.x / roughness.x);
+    float Hy_prime_alphay_2 = (H.y / roughness.y) * (H.y / roughness.y);
     vec3 ks = specular_albedo * (1.0 / (PI * roughness.x * roughness.y)) * (1.0 / (4.0 * LdotH_prime_2 * Hz_prime_4)) * exp(-((Hx_prime_alphax_2 + Hy_prime_alphay_2) / Hz_prime_2));
     // fresnel term
     float F = fresnelSchlick(H, tsp_V, fresnel_f0);
@@ -266,17 +263,17 @@ vec3 ambientShade(vec3 diffuse_albedo, float fresnel_f0)
     return diffuse_albedo * (1.0 - fresnel_f0);
 }
 
-vec3 TM_Rh(vec3 l)
-{
-    float il = getLuminance(l);
-    float ol = (il * (1.0f + (il / (tmwhite * tmwhite))))/(1.0f + il);
-    return l * (ol / il);
-}
+// vec3 TM_Rh(vec3 l)
+// {
+//     float il = getLuminance(l);
+//     float ol = (il * (1.0f + (il / (exposure * exposure))))/(1.0f + il);
+//     return l * (ol / il);
+// }
 
 vec3 TM_Exposure(vec3 l)
 {
     float il = getLuminance(l);
-    float ol = 1.0 - exp(- (il * tmwhite));
+    float ol = 1.0 - exp(- (il * exposure));
     return l * (ol / il);
 }
     
