@@ -36,7 +36,7 @@ Material::Material(
 {
 }
 
-void Material::bind(ShaderProgram * _shader)
+void Material::bind(ShaderProgram * _shader, const glm::vec2& _mscale)
 {
 	_shader->bindTex("material.s_diffuse_albedo", m_diffuse_albedo);
 	_shader->bindTex("material.s_normals", m_normals);
@@ -46,4 +46,5 @@ void Material::bind(ShaderProgram * _shader)
 	_shader->bindTex("material.s_fresnel_f0", m_fresnel_f0);
 	_shader->bindTex("material.s_displacement", m_displacement);
 	_shader->bindTex("material.s_transparency", m_transparency);
+	_shader->setUniform("material.f_mscale", _mscale);
 }

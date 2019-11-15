@@ -1,13 +1,23 @@
 # materials
-MATERIAL 0 "assets/materials/TAC7/slate/slate.axf"
-MATERIAL 1 "assets/materials/TAC7/happy_birthday/happy_birthday.axf"
+MATERIAL 0 "assets/materials/TAC7/slate.axf"
+MATERIAL 1 "assets/materials/TAC7/happy_birthday_full.axf"
+MATERIAL 2 "assets/materials/TAC7/flower.axf"
+MATERIAL 3 "assets/materials/TAC7/judo.axf"
+MATERIAL 4 "assets/materials/TAC7/keep_cool.axf"
+MATERIAL 5 "assets/materials/TAC7/reflector_red.axf"
+MATERIAL 6 "assets/materials/TAC7/shell.axf"
 
 # camera
 CAMERA 1 0 0.0 0.0 2.0 0.0 0.0 0.0 0.0 1.0 0.0 90.0 0.1 100.0
 
 # opaque models
-MODEL_OPAQUE 2 0 0 "assets/models/uglypot.obj" 0.0 0.0 0.0 0.0 0.0 1.0 0.0 10.0 10.0 10.0
-MODEL_OPAQUE 4 0 1 "assets/models/uglypot.obj" 25.0 0.0 0.0 0.0 0.0 1.0 0.0 10.0 10.0 10.0
+MODEL_OPAQUE 2 0 0 5.0 5.0 "assets/models/uglypot.obj" 0.0 0.0 0.0 0.0 0.0 1.0 0.0 10.0 10.0 10.0
+MODEL_OPAQUE 3 0 1 5.0 5.0 "assets/models/uglypot.obj" 25.0 0.0 0.0 0.0 0.0 1.0 0.0 10.0 10.0 10.0
+MODEL_OPAQUE 4 0 2 5.0 5.0 "assets/models/uglypot.obj" 50.0 0.0 0.0 0.0 0.0 1.0 0.0 10.0 10.0 10.0
+MODEL_OPAQUE 5 0 3 5.0 5.0 "assets/models/uglypot.obj" 75.0 0.0 0.0 0.0 0.0 1.0 0.0 10.0 10.0 10.0
+MODEL_OPAQUE 6 0 4 5.0 5.0 "assets/models/uglypot.obj" 100.0 0.0 0.0 0.0 0.0 1.0 0.0 10.0 10.0 10.0
+MODEL_OPAQUE 7 0 5 5.0 5.0 "assets/models/uglypot.obj" 125.0 0.0 0.0 0.0 0.0 1.0 0.0 10.0 10.0 10.0
+MODEL_OPAQUE 8 0 6 5.0 5.0 "assets/models/uglypot.obj" 150.0 0.0 0.0 0.0 0.0 1.0 0.0 10.0 10.0 10.0
 
 # transparent models
 # MODEL_TRANSPARENT 1 0 0 "assets/models/uglypot.obj" 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 1.0 1.0
