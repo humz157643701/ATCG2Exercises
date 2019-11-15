@@ -5,8 +5,8 @@
 
 Window::Window() :
 	GameWindow(
-		1280,
-		720,
+		1920,
+		1080,
 		false,
 		false,
 		4,
