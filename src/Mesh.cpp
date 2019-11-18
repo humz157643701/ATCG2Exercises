@@ -15,7 +15,8 @@ Mesh::Mesh(Mesh && other) :
 	ibo(other.ibo),
 	vao(other.vao),
 	material(other.material),
-	numIndices(other.numIndices)
+	numIndices(other.numIndices),
+	mscale(other.mscale)
 {
 	other.vbo = 0;
 	other.ibo = 0;
@@ -39,6 +40,7 @@ Mesh & Mesh::operator=(Mesh && other)
 	vbo = other.vbo;
 	ibo = other.ibo;
 	numIndices = other.numIndices;
+	mscale = other.mscale;
 
 	other.vbo = 0;
 	other.ibo = 0;
@@ -52,7 +54,7 @@ void Mesh::drawWithMaterial(ShaderProgram * shader)
 {
 	assert(material);
 	shader->saveTU();
-	material->bind(shader);
+	material->bind(shader, mscale);
 	draw();
 	shader->restoreTU();
 }
@@ -111,7 +113,7 @@ std::unique_ptr<Mesh> Mesh::createMesh(const std::vector<Vertex>& vd, const std:
 	return std::unique_ptr<Mesh>(new Mesh(vbo, ibo, vao, static_cast<GLuint>(id.size()), nullptr));
 }
 
-std::unique_ptr<Mesh> Mesh::createMesh(const std::vector<Vertex>& vd, const std::vector<Index>& id, const std::vector<VertexAttribute>& att, Material* material)
+std::unique_ptr<Mesh> Mesh::createMesh(const std::vector<Vertex>& vd, const std::vector<Index>& id, const std::vector<VertexAttribute>& att, Material* material, const glm::vec2& material_scale)
 {
 	GLuint vbo, ibo, vao;
 	glGenVertexArrays(1, &vao); 
@@ -152,14 +154,15 @@ std::unique_ptr<Mesh> Mesh::createMesh(const std::vector<Vertex>& vd, const std:
 	}
 	glBindBuffer(GL_ARRAY_BUFFER, 0); 
 	glBindVertexArray(0); 
-	return std::unique_ptr<Mesh>(new Mesh(vbo, ibo, vao, static_cast<GLuint>(id.size()), material));
+	return std::unique_ptr<Mesh>(new Mesh(vbo, ibo, vao, static_cast<GLuint>(id.size()), material, material_scale));
 }
 
-Mesh::Mesh(GLuint _vbo, GLuint _ibo, GLuint _vao, GLsizei _numIndices, Material * _material) :
+Mesh::Mesh(GLuint _vbo, GLuint _ibo, GLuint _vao, GLsizei _numIndices, Material * _material, const glm::vec2& material_scale) :
 	vbo(_vbo),
 	ibo(_ibo),
 	vao(_vao),
 	numIndices(_numIndices),
-	material(_material)
+	material(_material),
+	mscale(material_scale)
 {
 }

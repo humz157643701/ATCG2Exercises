@@ -54,6 +54,7 @@ public:
 	\returns Returns the current view matrix
 	*/
 	const glm::mat4& getViewMatrix();
+	glm::mat4 getViewRotationMatrix();
 	/*!
 	\brief Returns the current projection matrix
 	\returns Returns the current projection matrix

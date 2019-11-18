@@ -36,6 +36,13 @@ const glm::mat4 & Camera::getViewMatrix()
 	return m_viewMatrix;
 }
 
+glm::mat4 Camera::getViewRotationMatrix()
+{
+	auto viewmat = getViewMatrix();
+	viewmat[3] = glm::vec4(0.0, 0.0, 0.0, 1.0);
+	return viewmat;
+}
+
 const glm::mat4 & Camera::getProjectionMatrix()
 {
 	if (m_projDirty)

@@ -450,6 +450,11 @@ void SceneLoader::parseFile(Scanner * scan, Scene * scn)
 			scan->match(TokType::Name);
 			parseExposure(scan, scn);
 		}
+		else if (scan->lookahead().value == "SKYBOX_RES")
+		{
+			scan->match(TokType::Name);
+			parseSkyboxRes(scan, scn);
+		}
 		else if (scan->lookahead().value == "CLEAR_COLOR")
 		{
 			scan->match(TokType::Name);
@@ -513,6 +518,10 @@ void SceneLoader::parseModelOpaque(Scanner * scan, Scene * scn)
 	pid = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
 	// material id
 	mid = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
+	// material scale x
+	float sx = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
+	// material scale y
+	float sy = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	// obj path
 	path = scan->lookahead().value; scan->match(TokType::String);
 	// transform
@@ -540,7 +549,7 @@ void SceneLoader::parseModelOpaque(Scanner * scan, Scene * scn)
 		{
 			if(!m.hasNormals)
 				OBJLoader::recalculateNormals(m);
-			scn->m_meshes.push_back(std::move(Mesh::createMesh(m.vertices, m.indices, m.atts, mat)));
+			scn->m_meshes.push_back(std::move(Mesh::createMesh(m.vertices, m.indices, m.atts, mat, glm::vec2(sx, sy))));
 			model.meshes.push_back(scn->m_meshes.back().get());
 		}
 	}
@@ -569,6 +578,10 @@ void SceneLoader::parseModelTransparent(Scanner * scan, Scene * scn)
 	pid = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
 	// material id
 	mid = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
+	// material scale x
+	float sx = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
+	// material scale y
+	float sy = static_cast<float>(scan->lookahead().floatvalue); scan->match(TokType::Float);
 	// obj path
 	path = scan->lookahead().value; scan->match(TokType::String);
 	// transform
@@ -596,7 +609,7 @@ void SceneLoader::parseModelTransparent(Scanner * scan, Scene * scn)
 		{
 			if(!m.hasNormals)
 				OBJLoader::recalculateNormals(m);
-			scn->m_meshes.push_back(std::move(Mesh::createMesh(m.vertices, m.indices, m.atts, mat)));
+			scn->m_meshes.push_back(std::move(Mesh::createMesh(m.vertices, m.indices, m.atts, mat, glm::vec2(sx, sy))));
 			model.meshes.push_back(scn->m_meshes.back().get());
 		}
 	}
@@ -669,6 +682,12 @@ void SceneLoader::parseExposure(Scanner * scan, Scene * scn)
 	scn->tm_exposure = exposure;
 }
 
+void SceneLoader::parseSkyboxRes(Scanner * scan, Scene * scn)
+{
+	GLsizei res = static_cast<GLsizei>(scan->lookahead().intvalue); scan->match(TokType::Int);
+	scn->m_skyboxres = res;
+}
+
 void SceneLoader::parseClearColor(Scanner * scan, Scene * scn)
 {
 	glm::vec4 color;
@@ -681,7 +700,33 @@ void SceneLoader::parseClearColor(Scanner * scan, Scene * scn)
 
 void SceneLoader::parseEnvMap(Scanner * scan, Scene * scn)
 {
-	// support spherical and cube maps?
+	std::string path;
+	bool isEquirectangularMap;
+
+	path = scan->lookahead().value; scan->match(TokType::String);
+	isEquirectangularMap = scan->lookahead().boolvalue; scan->match(TokType::Boolean);
+	
+	if (isEquirectangularMap)
+	{
+		std::unique_ptr<Texture> tex = Texture::T2DFromFile(path, TexFileType::HDR, GL_RGB32F, GL_RGB, true);
+
+		float max_aniso;
+		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &max_aniso);
+
+		tex->bind(0);
+		tex->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		tex->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		tex->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+		tex->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+		tex->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+		tex->unbind();
+
+		scn->m_er_env_map = std::move(tex);
+	}
+	else
+	{
+		throw std::logic_error("Cube maps are not yet supported by the scene loader.");
+	}	
 }
 
 void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
@@ -743,11 +788,13 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		true
 	);
 
+	diff_albedo->bind(0);
 	diff_albedo->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	diff_albedo->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	diff_albedo->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 	diff_albedo->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
 	diff_albedo->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+	diff_albedo->unbind();
 
 	scn->m_textures.push_back(std::move(diff_albedo));
 	mat.m_diffuse_albedo = scn->m_textures.back().get();
@@ -785,11 +832,13 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		true
 	);
 
+	specular_albedo->bind(0);
 	specular_albedo->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	specular_albedo->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	specular_albedo->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 	specular_albedo->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
 	specular_albedo->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+	specular_albedo->unbind();
 
 	scn->m_textures.push_back(std::move(specular_albedo));
 	mat.m_specular_albedo = scn->m_textures.back().get();
@@ -827,11 +876,13 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		true
 	);
 
+	aniso->bind(0);
 	aniso->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	aniso->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	aniso->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 	aniso->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
 	aniso->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+	aniso->unbind();
 
 	scn->m_textures.push_back(std::move(aniso));
 	mat.m_aniso_rotation = scn->m_textures.back().get();
@@ -869,11 +920,13 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 			true
 		);
 
+		displacement->bind(0);
 		displacement->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		displacement->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		displacement->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 		displacement->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
 		displacement->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+		displacement->unbind();
 
 		scn->m_textures.push_back(std::move(displacement));
 		mat.m_displacement = scn->m_textures.back().get();
@@ -916,11 +969,13 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		true
 	);
 
+	fresnel->bind(0);
 	fresnel->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	fresnel->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	fresnel->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 	fresnel->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
 	fresnel->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+	fresnel->unbind();
 
 	scn->m_textures.push_back(std::move(fresnel));
 	mat.m_fresnel_f0 = scn->m_textures.back().get();
@@ -958,11 +1013,13 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		true
 	);
 
+	roughness->bind(0);
 	roughness->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	roughness->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	roughness->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 	roughness->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
 	roughness->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+	roughness->unbind();
 
 	scn->m_textures.push_back(std::move(roughness));
 	mat.m_roughness = scn->m_textures.back().get();
@@ -1000,11 +1057,13 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		true
 	);
 
+	normal->bind(0);
 	normal->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	normal->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	normal->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 	normal->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
 	normal->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+	normal->unbind();
 
 	scn->m_textures.push_back(std::move(normal));
 	mat.m_normals = scn->m_textures.back().get();
@@ -1042,11 +1101,13 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 			true
 		);
 
+		transparency->bind(0);
 		transparency->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		transparency->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		transparency->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
 		transparency->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
 		transparency->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+		transparency->unbind();
 
 		scn->m_textures.push_back(std::move(transparency));
 		mat.m_transparency = scn->m_textures.back().get();

@@ -1,4 +1,4 @@
-#version 440 core
+#version 430 core
      
 //define some constants
 #define MAX_SHININESS 4000
@@ -48,6 +48,7 @@ struct Material
     sampler2D s_fresnel_f0;
     sampler2D s_displacement;
     sampler2D s_transparency;
+    vec2 f_mscale;
 };
 
 in struct VertexData
@@ -138,7 +139,7 @@ void main()
     mat3 itbn = transpose(tbn);     
    
     //prepare texture coordinate
-    vec2 tc = vertexData.uv;
+    vec2 tc = vertexData.uv * material.f_mscale;
 
     //read material properties
     vec3 diffuse_albedo     = texture(material.s_diffuse_albedo, tc).rgb;

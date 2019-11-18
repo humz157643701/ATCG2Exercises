@@ -39,7 +39,7 @@ public:
 	Material& operator=(const Material& other) = default;
 
 	
-	void bind(ShaderProgram* _shader);
+	void bind(ShaderProgram* _shader, const glm::vec2& _mscale = glm::vec2(0.0, 0.0));
 
 	Texture* m_diffuse_albedo;
 	Texture* m_normals;

@@ -1,4 +1,6 @@
 #include "Texture.h"
+#include <stb_image.h>
+#include <glerror.h>
 
 Texture::Texture() :
 	tex(0),
@@ -145,6 +147,85 @@ std::unique_ptr<Texture> Texture::TCBFromData(GLenum internalformat, GLsizei wid
 	return std::unique_ptr<Texture>(new Texture(tex, TexType::TCB, GL_TEXTURE_CUBE_MAP, { width, height, 1 }, 1 + static_cast<GLuint>(glm::floor(glm::log2(static_cast<GLfloat>(glm::max(width, height)))))));
 }
 
+std::unique_ptr<Texture> Texture::T2DFromFile(const std::string& path, TexFileType filetype, GLenum internalformat, GLenum format, bool genMipMaps)
+{
+	GLsizei width;
+	GLsizei height;
+	GLsizei channels;
+	stbi_set_flip_vertically_on_load(true);
+	float* f_image;
+	uint8_t* uc_image;
+	GLenum datatype;
+	if (filetype == TexFileType::HDR)
+	{
+		f_image = stbi_loadf(path.c_str(), &width, &height, &channels, 0);
+		datatype = GL_FLOAT;
+	}
+	else
+	{
+		uc_image = stbi_load(path.c_str(), &width, &height, &channels, 0);
+		datatype = GL_UNSIGNED_BYTE;
+	}
+	GLuint texid = 0;
+	if ((filetype == TexFileType::HDR && f_image == nullptr) || (filetype != TexFileType::HDR && uc_image == nullptr))
+	{
+		throw std::logic_error("Texture file couldn't be read.");
+	}
+	else
+	{
+		glGenTextures(1, &texid); GLERR
+		if (texid == 0)
+		{
+			if (filetype == TexFileType::HDR)
+			{
+				stbi_image_free(f_image);
+			}
+			else
+			{
+				stbi_image_free(uc_image);
+			}
+			throw std::logic_error("OpenGL texture object creation failed.");
+		}
+		glBindTexture(GL_TEXTURE_2D, texid); GLERR
+		glTexImage2D(
+			GL_TEXTURE_2D,
+			0,
+			internalformat,
+			width,
+			height,
+			0,
+			format,
+			datatype,
+			(filetype == TexFileType::HDR ? reinterpret_cast<const void*>(f_image) : reinterpret_cast<const void*>(uc_image))
+		);
+		if (checkglerror())
+		{
+			glDeleteTextures(1, &texid);
+			if (filetype == TexFileType::HDR)
+			{
+				stbi_image_free(f_image);
+			}
+			else
+			{
+				stbi_image_free(uc_image);
+			}
+			throw std::logic_error("Error. Could not buffer texture data.");
+		}
+		if (genMipMaps)
+			glGenerateMipmap(GL_TEXTURE_2D); GLERR
+			glBindTexture(GL_TEXTURE_2D, 0); GLERR
+			if (filetype == TexFileType::HDR)
+			{
+				stbi_image_free(f_image);
+			}
+			else
+			{
+				stbi_image_free(uc_image);
+			}
+	}
+	return std::unique_ptr<Texture>(new Texture(texid, TexType::T2D, GL_TEXTURE_2D, glm::ivec3{ width, height, 1 }, 1 + static_cast<GLuint>(glm::floor(glm::log2(static_cast<GLfloat>(glm::max(width, height)))))));
+}
+
 std::unique_ptr<Texture> Texture::TCB(GLenum internalformat, GLsizei width, GLsizei height, GLsizei levels)
 {
 	GLuint tex;
@@ -162,4 +243,20 @@ Texture::Texture(GLint _tex, TexType _type, GLenum _target, const glm::ivec3 & _
 	size(_size),
 	miplevels(_miplevels)
 {
+}
+
+GLsizei Texture::calculateMipMapLevels(GLsizei width, GLsizei height)
+{
+	return 1 + static_cast<GLsizei>(glm::floor(glm::log2(static_cast<GLfloat>(glm::max(width, height)))));
+}
+
+GLsizei Texture::calculateMipMapLevels(const glm::ivec3& sz)
+{
+	return 1 + static_cast<GLsizei>(glm::floor(glm::log2(static_cast<GLfloat>(glm::max(sz.x, glm::max(sz.y, sz.z))))));
+}
+
+void Texture::generateMipMap()
+{
+	glGenerateMipmap(target);
+	miplevels = calculateMipMapLevels(size);
 }

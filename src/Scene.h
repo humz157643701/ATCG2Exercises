@@ -47,7 +47,10 @@ public:
 	//! Backgroud color / clear color
 	glm::vec4 clearColor;
 	//! Environment map
-	std::unique_ptr<Texture> m_env_map;
+	std::unique_ptr<Texture> m_cb_env_map;
+	std::unique_ptr<Texture> m_er_env_map;
+
+	GLsizei m_skyboxres;
 
 	/**
 	\brief Draws every opaque model without setting material uniforms
