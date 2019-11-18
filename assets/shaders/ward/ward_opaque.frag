@@ -162,7 +162,7 @@ void main()
     mat3 bump_tbn = mat3(vsp_bump_tangent, vsp_bump_bitangent, vsp_bump_normal);
     mat3 bump_itbn = transpose(bump_tbn);
     mat3 R = rotationZ(aniso_rotation);
-    bump_itbn = R * bump_itbn;  
+    bump_itbn = R * bump_itbn;
 
     //prepare vectors
     vec3 vsp_P = vertexData.viewspacePosition;    
@@ -175,7 +175,9 @@ void main()
         vec3 vsp_L = normalize(-dirlights[i].direction);
         vec3 tsp_L = bump_itbn * vsp_L;
         vec3 Li = Li_directional_light(i);
-        outcol += brdf(tsp_L, tsp_V, diffuse_albedo, specular_albedo, roughness, aniso_rotation, fresnel_f0, displacement, transparency) * max(dot(vsp_bump_normal, vsp_L), 0.0) * Li;
+        outcol += brdf(tsp_L, tsp_V, diffuse_albedo, specular_albedo, roughness, aniso_rotation, fresnel_f0, displacement, transparency) *
+                  max(dot(vsp_bump_normal, vsp_L), 0.0) *
+                  Li;
     }
 
     //point lights
@@ -184,7 +186,9 @@ void main()
         vec3 vsp_L = normalize(pointlights[i].position - vsp_P);
         vec3 tsp_L = bump_itbn * vsp_L;
         vec3 Li = Li_point_light(vsp_P, i);
-        outcol += brdf(tsp_L, tsp_V, diffuse_albedo, specular_albedo, roughness, aniso_rotation, fresnel_f0, displacement, transparency) * max(dot(vsp_bump_normal, vsp_L), 0.0) * Li;
+        outcol += brdf(tsp_L, tsp_V, diffuse_albedo, specular_albedo, roughness, aniso_rotation, fresnel_f0, displacement, transparency) *
+                  max(dot(vsp_bump_normal, vsp_L), 0.0) *
+                  Li;
     }
 
     //ambient lights
@@ -261,15 +265,8 @@ vec3 brdf(
  
 vec3 ambientShade(vec3 diffuse_albedo, float fresnel_f0)
 {
-    return diffuse_albedo * (1.0 - fresnel_f0);
+    return diffuse_albedo;
 }
-
-// vec3 TM_Rh(vec3 l)
-// {
-//     float il = getLuminance(l);
-//     float ol = (il * (1.0f + (il / (exposure * exposure))))/(1.0f + il);
-//     return l * (ol / il);
-// }
 
 vec3 TM_Exposure(vec3 l)
 {
