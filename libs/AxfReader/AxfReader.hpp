@@ -16,7 +16,7 @@
  https://www.xrite.com/axf
 
 */
-
+#define H5_BUILT_AS_DYNAMIC_LIB
 #include <cstdint>
 #include <iostream>
 #include <map>
