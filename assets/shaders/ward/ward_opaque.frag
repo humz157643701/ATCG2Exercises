@@ -108,14 +108,10 @@ vec3 brdf(
 vec3 ambientShade(vec3 diffuse_albedo, float fresnel_f0);
     
 //tone mapping and gamma correction
-vec3 TM_Rh(vec3 l);
 vec3 TM_Exposure(vec3 l);
 vec3 gammaCorrect(vec3 c);
 vec3 inverseGammaCorrect(vec3 c);
     
-//color space conversion
-vec3 RGBtoXYZ(vec3 rgb);
-vec3 XYZtoRGB(vec3 xyz);
 float getLuminance(vec3 linearRGB);
 
 mat3 rotationZ(float angle);
@@ -198,7 +194,7 @@ void main()
     }
     
     //tone mapping
-    outcol = TM_Exposure(outcol);    
+    outcol = TM_Exposure(outcol);
     //gamma correction
     outcol = gammaCorrect(outcol);    
     //output all that stuff
@@ -274,7 +270,7 @@ vec3 TM_Exposure(vec3 l)
     float ol = 1.0 - exp(- (il * exposure));
     return l * (ol / il);
 }
-    
+
 vec3 gammaCorrect(vec3 c)
 {
     return pow(c, vec3(1.0f / 2.2f));
@@ -287,5 +283,5 @@ vec3 inverseGammaCorrect(vec3 c)
     
 float getLuminance(vec3 linearRGB)
 {
-    return dot(vec3(0.2126729,  0.7151522,  0.0721750), gammaCorrect(linearRGB));
+    return dot(vec3(0.2126729,  0.7151522,  0.0721750), gammaCorrect(abs(linearRGB)));
 }
