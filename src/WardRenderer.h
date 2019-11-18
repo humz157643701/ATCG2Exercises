@@ -11,6 +11,7 @@ Ward renderer
 #define _WARD_RENDERER_H_
 #include <IRenderer.h>
 #include <Shader.h>
+#include <Scene.h>
 
 /**
 \brief Implements a ward brdf renderer
@@ -21,7 +22,7 @@ public:
 	/*!
 	\brief Constructs the renderer.
 	*/
-	WardRenderer();
+	WardRenderer(Scene* scn);
 	//! Destructor
 	~WardRenderer();
 	/*!
@@ -39,7 +40,13 @@ public:
 
 private:
 	ShaderProgram m_opaque_shader;
+	ShaderProgram m_ermap_to_cubemap;
+	ShaderProgram m_skybox_shader;
 	//ShaderProgram transparent_shader;
+	std::unique_ptr<Texture> m_skybox;
+
+	// framebuffers
+	GLuint m_fb_erconv;
 };
 
 #endif

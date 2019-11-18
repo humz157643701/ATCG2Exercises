@@ -450,6 +450,11 @@ void SceneLoader::parseFile(Scanner * scan, Scene * scn)
 			scan->match(TokType::Name);
 			parseExposure(scan, scn);
 		}
+		else if (scan->lookahead().value == "SKYBOX_RES")
+		{
+			scan->match(TokType::Name);
+			parseSkyboxRes(scan, scn);
+		}
 		else if (scan->lookahead().value == "CLEAR_COLOR")
 		{
 			scan->match(TokType::Name);
@@ -677,6 +682,12 @@ void SceneLoader::parseExposure(Scanner * scan, Scene * scn)
 	scn->tm_exposure = exposure;
 }
 
+void SceneLoader::parseSkyboxRes(Scanner * scan, Scene * scn)
+{
+	GLsizei res = static_cast<GLsizei>(scan->lookahead().intvalue); scan->match(TokType::Int);
+	scn->m_skyboxres = res;
+}
+
 void SceneLoader::parseClearColor(Scanner * scan, Scene * scn)
 {
 	glm::vec4 color;
@@ -689,7 +700,33 @@ void SceneLoader::parseClearColor(Scanner * scan, Scene * scn)
 
 void SceneLoader::parseEnvMap(Scanner * scan, Scene * scn)
 {
-	// support spherical and cube maps?
+	std::string path;
+	bool isEquirectangularMap;
+
+	path = scan->lookahead().value; scan->match(TokType::String);
+	isEquirectangularMap = scan->lookahead().boolvalue; scan->match(TokType::Boolean);
+	
+	if (isEquirectangularMap)
+	{
+		std::unique_ptr<Texture> tex = Texture::T2DFromFile(path, TexFileType::HDR, GL_RGB32F, GL_RGB, true);
+
+		float max_aniso;
+		glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &max_aniso);
+
+		tex->bind(0);
+		tex->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		tex->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		tex->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+		tex->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+		tex->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+		tex->unbind();
+
+		scn->m_er_env_map = std::move(tex);
+	}
+	else
+	{
+		throw std::logic_error("Cube maps are not yet supported by the scene loader.");
+	}	
 }
 
 void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)

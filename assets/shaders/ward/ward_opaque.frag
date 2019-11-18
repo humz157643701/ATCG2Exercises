@@ -1,4 +1,4 @@
-#version 440 core
+#version 430 core
      
 //define some constants
 #define MAX_SHININESS 4000

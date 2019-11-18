@@ -5,12 +5,12 @@
 
 Window::Window() :
 	GameWindow(
-		1920,
-		1080,
+		1280,
+		720,
 		false,
 		false,
 		4,
-		3,
+		5,
 		"Ward Renderer",
 		4
 	),
@@ -95,7 +95,7 @@ GLvoid Window::render(GLdouble dtime)
 	}
 }
 
-GLvoid Window::init()
+GLvoid Window::init() 
 {
 	setCursorVisible(false);
 	loadSceneList();
@@ -109,7 +109,7 @@ GLvoid Window::init()
 	m_spline_speed = 0.1f;
 
 	// create renderer
-	m_renderer = std::unique_ptr<WardRenderer>(new WardRenderer());
+	m_renderer = std::unique_ptr<WardRenderer>(new WardRenderer(m_scene.get()));
 
 	m_updateScene = true;
 
@@ -134,7 +134,7 @@ void Window::onFrameBufferResize(int width, int height)
 {
 	m_scene->m_camera.setViewport(width, height);
 	// recreate renderer
-	m_renderer.reset(new WardRenderer());
+	m_renderer.reset(new WardRenderer(m_scene.get()));
 }
 
 void Window::onKey(Key key, Action action, Modifier modifier)

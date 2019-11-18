@@ -29,6 +29,13 @@ enum class TexType
 	TCB	
 };
 
+enum class TexFileType
+{
+	PNG,
+	HDR,
+	JPG
+};
+
 /*!
 \brief Implements a wrapper to create and handle OpenGL textures of various formats
 */
@@ -80,6 +87,18 @@ public:
 	\param genMipMaps If true, mipmaps are generated after the texture is created
 	*/
 	static std::unique_ptr<Texture> T2DFromData(GLenum internalformat, GLsizei width, GLsizei height, GLenum format, GLenum etype, void* data, bool genMipMaps);
+
+
+	/**
+	\brief Creates a 2D Texture from a file
+
+	\param internalFormat OpenGl texture format
+	\param format Format of the input data (as one would pass it to TexImage*D...)
+	\param etype Basic data type, GL_FLOAT, GL_UNSIGNED_BYTE  and so on
+	\param data Pointer so some raw texture data
+	\param genMipMaps If true, mipmaps are generated after the texture is created
+	*/
+	static std::unique_ptr<Texture> T2DFromFile(const std::string& path, TexFileType filetype, GLenum internalformat, GLenum format, bool genMipMaps);
 
 	/**
 	\brief Creates an empty 2D texture
@@ -135,17 +154,21 @@ public:
 	*/
 	static std::unique_ptr<Texture> TCB(GLenum internalformat, GLsizei width, GLsizei height, GLsizei levels);
 
+	static GLsizei calculateMipMapLevels(GLsizei width, GLsizei height);
+	static GLsizei calculateMipMapLevels(const glm::ivec3& sz);
+
+	void generateMipMap();
+
 	//! Can be set to identify the texture later
 	std::string path;
-private:
-	Texture(GLint _tex, TexType _type, GLenum _target, const glm::ivec3& _size, GLuint _miplevels);
 
 	GLuint tex;
 	TexType type;
 	GLenum target;
 	glm::ivec3 size;
 	GLuint miplevels;
-	
+private:
+	Texture(GLint _tex, TexType _type, GLenum _target, const glm::ivec3& _size, GLuint _miplevels);	
 };
 
 #endif
