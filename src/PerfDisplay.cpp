@@ -1,6 +1,7 @@
 #include "PerfDisplay.h"
 // thats a bit weird, isn't it?
 #include <ft2build.h>
+#include <stdexcept>
 #include FT_FREETYPE_H
 #include <cmath>
 #include <algorithm>

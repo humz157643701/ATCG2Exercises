@@ -15,6 +15,7 @@ Mesh class
 #include <Shader.h>
 #include <memory>
 #include <CommonTypes.h>
+#include <stdexcept>
 
 /*!
 \brief Class that manages geometry data ready to be rendered with OpenGL
