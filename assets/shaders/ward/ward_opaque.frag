@@ -1,8 +1,6 @@
 #version 430 core
      
 //define some constants
-#define MAX_SHININESS 4000
-#define INSULATOR_BASE_REFLECTIVITY 0.04
 #define PI 3.14159265359
 #define MAX_DIR_LIGHTS 2
 #define MAX_POINT_LIGHTS 8
@@ -62,7 +60,6 @@ in struct VertexData
 //uniforms -------------------------------------------------------------------------------------------------------------
 //camera
 uniform Camera camera;
-    
 //lights
 uniform DirectionalLight dirlights[MAX_DIR_LIGHTS];
 uniform int dirlightcount;
@@ -73,6 +70,7 @@ uniform int pointlightcount;
 uniform AmbientLight ambientlights[MAX_AMBIENT_LIGHTS];
 uniform int ambientlightcount;
     
+uniform samplerCube skybox;
 //material
 uniform Material material;
 
@@ -159,6 +157,7 @@ void main()
     mat3 bump_itbn = transpose(bump_tbn);
     mat3 R = rotationZ(aniso_rotation);
     bump_itbn = R * bump_itbn;
+    bump_tbn = transpose(bump_itbn);
 
     //prepare vectors
     vec3 vsp_P = vertexData.viewspacePosition;    

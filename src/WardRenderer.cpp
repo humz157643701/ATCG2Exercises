@@ -90,6 +90,7 @@ void WardRenderer::render(Scene * scene, double dt, bool measure)
 	glCullFace(GL_BACK);
 
 	m_opaque_shader.use();
+	m_opaque_shader.bindTex("skybox", m_skybox.get());
 	scene->m_camera.bind(&m_opaque_shader, "camera");
 
 	for (size_t i = 0; i < scene->m_dirlights.size(); ++i)
