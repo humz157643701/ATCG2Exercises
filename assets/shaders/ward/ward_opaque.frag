@@ -109,6 +109,17 @@ vec3 brdf(
     float transparency
 );
 
+vec3 brdf_s(
+    vec3 tsp_L,
+    vec3 tsp_V,
+    vec3 specular_albedo,
+    vec2 roughness,
+    float aniso_rot,
+    float fresnel_f0,
+    float displacement,
+    float transparency
+);
+
 vec3 ambientShade(vec3 diffuse_albedo, float fresnel_f0);
     
 //tone mapping and gamma correction
@@ -235,7 +246,7 @@ void main()
         vec3 tsp_L = 2.0 * dot(tsp_V, h) * h - tsp_V;
         vec3 wsp_L = bump_tangent_to_world * tsp_L;
 
-        vec3 b = brdf(tsp_L, tsp_V, diffuse_albedo, specular_albedo, roughness, aniso_rotation, fresnel_f0, displacement, transparency);
+        vec3 b = brdf_s(tsp_L, tsp_V, specular_albedo, roughness, aniso_rotation, fresnel_f0, displacement, transparency);
         float w = 2.0 / (1.0 + (tsp_V.z / tsp_L.z));
         float F = fresnelSchlick(h, tsp_V, fresnel_f0);
 
@@ -311,6 +322,31 @@ vec3 brdf(
     float F = fresnelSchlick(H, tsp_V, fresnel_f0);
     
     return kd + ks * F;
+}
+
+vec3 brdf_s(
+    vec3 tsp_L,
+    vec3 tsp_V,
+    vec3 specular_albedo,
+    vec2 roughness,
+    float aniso_rot,
+    float fresnel_f0,
+    float displacement,
+    float transparency
+)
+{
+    // specular part
+    vec3 H = normalize(tsp_L + tsp_V);    
+    float LdotH_prime_2 = dot(tsp_L, H) * dot(tsp_L, H);    
+    float Hz_prime_2 = H.z * H.z;
+    float Hz_prime_4 = Hz_prime_2 * Hz_prime_2;
+    float Hx_prime_alphax_2 = (H.x / roughness.x) * (H.x / roughness.x);
+    float Hy_prime_alphay_2 = (H.y / roughness.y) * (H.y / roughness.y);
+    vec3 ks = specular_albedo * (1.0 / (PI * roughness.x * roughness.y)) * (1.0 / (4.0 * LdotH_prime_2 * Hz_prime_4)) * exp(-((Hx_prime_alphax_2 + Hy_prime_alphay_2) / Hz_prime_2));
+    // fresnel term
+    float F = fresnelSchlick(H, tsp_V, fresnel_f0);
+    
+    return ks * F;
 }
  
 vec3 ambientShade(vec3 diffuse_albedo, float fresnel_f0)
