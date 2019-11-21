@@ -27,6 +27,8 @@ out struct VertexData
     vec3 tangent;
 } vertexData;
     
+flat out mat3 modelrot;
+
 void main()
 {
     mat4 mmat = model_matrix;   
@@ -43,4 +45,11 @@ void main()
     vertexData.uv = uv;
 
     vertexData.tangent = normalize(nmat * tangent);
+    modelrot = mat3(
+        normalize(model_matrix[0].xyz),
+        normalize(model_matrix[1].xyz),
+        normalize(model_matrix[2].xyz)
+    );
+
+    
 }

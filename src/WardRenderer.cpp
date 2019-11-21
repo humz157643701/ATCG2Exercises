@@ -91,6 +91,8 @@ void WardRenderer::render(Scene * scene, double dt, bool measure)
 
 	m_opaque_shader.use();
 	m_opaque_shader.bindTex("skybox", m_skybox.get());
+	m_opaque_shader.setUniform("skybox_res", static_cast<float>(scene->m_skyboxres));
+	m_opaque_shader.setUniform("skybox_lodlevels", static_cast<float>(m_skybox->miplevels));
 	scene->m_camera.bind(&m_opaque_shader, "camera");
 
 	for (size_t i = 0; i < scene->m_dirlights.size(); ++i)

@@ -24,6 +24,7 @@ MODEL_OPAQUE 8 0 6 5.0 5.0 "assets/models/uglypot.obj" 150.0 0.0 0.0 0.0 0.0 1.0
 
 # lights
 DIRECTIONAL_LIGHT 3.14 3.14 3.14 -0.3 -0.5 -1.0
+# DIRECTIONAL_LIGHT 3.14 0.0 0.0 1.0 0.0 1.0
 # POINT_LIGHT 3 1 4.0 4.0 4.0 0.5 0.5 2.0
 AMBIENT_LIGHT 0.05 0.05 0.05
 # exposure

@@ -8,7 +8,7 @@ Window::Window() :
 		1280,
 		720,
 		false,
-		false,
+		true,
 		4,
 		5,
 		"Ward Renderer",

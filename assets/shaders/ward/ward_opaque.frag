@@ -5,6 +5,8 @@
 #define MAX_DIR_LIGHTS 2
 #define MAX_POINT_LIGHTS 8
 #define MAX_AMBIENT_LIGHTS 2
+#define SPECULAR_IBL_SAMPLES 32
+#define SPECULAR_IBL_LOD_BIAS_POW 0.85
     
     
 //some structs for cleaner code ----------------------------------------------------------------------------------------
@@ -56,6 +58,8 @@ in struct VertexData
     vec3 normal;
     vec3 tangent;
 } vertexData;
+
+flat in mat3 modelrot;
     
 //uniforms -------------------------------------------------------------------------------------------------------------
 //camera
@@ -71,6 +75,8 @@ uniform AmbientLight ambientlights[MAX_AMBIENT_LIGHTS];
 uniform int ambientlightcount;
     
 uniform samplerCube skybox;
+uniform float skybox_res;
+uniform float skybox_lodlevels;
 //material
 uniform Material material;
 
@@ -88,7 +94,7 @@ vec3 Li_point_light(vec3 P, int i);
 vec3 Li_ambient_light(int i);
     
 //fresnel approximation
-float fresnelSchlick(vec3 H, vec3 V, vec3 F0);
+float fresnelSchlick(vec3 H, vec3 V, float F0);
     
 //functions applying the shading model
 vec3 brdf(
@@ -113,6 +119,21 @@ vec3 inverseGammaCorrect(vec3 c);
 float getLuminance(vec3 linearRGB);
 
 mat3 rotationZ(float angle);
+
+float RadicalInverse_VdC(uint bits) 
+{
+    bits = (bits << 16u) | (bits >> 16u);
+    bits = ((bits & 0x55555555u) << 1u) | ((bits & 0xAAAAAAAAu) >> 1u);
+    bits = ((bits & 0x33333333u) << 2u) | ((bits & 0xCCCCCCCCu) >> 2u);
+    bits = ((bits & 0x0F0F0F0Fu) << 4u) | ((bits & 0xF0F0F0F0u) >> 4u);
+    bits = ((bits & 0x00FF00FFu) << 8u) | ((bits & 0xFF00FF00u) >> 8u);
+    return float(bits) * 2.3283064365386963e-10; // / 0x100000000
+}
+
+vec2 Hammersley(uint i, uint N)
+{
+    return vec2(float(i)/float(N), RadicalInverse_VdC(i));
+}  
     
 //main function --------------------------------------------------------------------------------------------------------
 void main()
@@ -164,6 +185,9 @@ void main()
     vec3 vsp_V = normalize(-vsp_P);
     vec3 tsp_V = bump_itbn * vsp_V;
 
+    // transformation from perturbed tangent space to world space (direction only)
+    mat3 bump_tangent_to_world = transpose(mat3(camera.viewMatrix)) * bump_tbn;
+
     //directional lights
     for(int i = 0; i < dirlightcount; ++i)
     {   
@@ -186,11 +210,42 @@ void main()
                   Li;
     }
 
-    //ambient lights
+    //ambient lights // replace with diffuse IBL later!
     for(int i = 0; i < ambientlightcount; ++i)
     {
         outcol += ambientShade(diffuse_albedo, fresnel_f0) * Li_ambient_light(i); // TODO <- what about this?
     }
+
+    // specular IBL
+    vec3 sibl = vec3(0.0);
+
+    // from bump tangent space to world space
+    // idea: choose sample count based on roughness
+    for(int i = 0; i < SPECULAR_IBL_SAMPLES; ++i)
+    {
+        vec2 usamp = Hammersley(i, SPECULAR_IBL_SAMPLES);
+        float hphi = atan(roughness.y * sin(2.0 * PI * usamp.y), roughness.x * cos(2.0 * PI * usamp.y));
+        float htheta = atan(sqrt((-log(1.0 - usamp.x)) / (((cos(hphi) * cos(hphi)) / (roughness.x * roughness.x)) + ((sin(hphi) * sin(hphi)) / (roughness.y * roughness.y)))));
+        vec3 h = vec3(
+            sin(htheta) * cos(hphi),
+            sin(htheta) * sin(hphi),
+            cos(htheta)
+        );
+
+        vec3 tsp_L = 2.0 * dot(tsp_V, h) * h - tsp_V;
+        vec3 wsp_L = bump_tangent_to_world * tsp_L;
+
+        vec3 b = brdf(tsp_L, tsp_V, diffuse_albedo, specular_albedo, roughness, aniso_rotation, fresnel_f0, displacement, transparency);
+        float w = 2.0 / (1.0 + (tsp_V.z / tsp_L.z));
+        float F = fresnelSchlick(h, tsp_V, fresnel_f0);
+
+        vec3 pdf = (b / (F * specular_albedo * w));
+        vec3 Li = texture(skybox, wsp_L, pow(max(roughness.x, roughness.y), SPECULAR_IBL_LOD_BIAS_POW) * skybox_lodlevels).rgb;
+        sibl += (Li * b * max(tsp_L.z, 0.0)) / pdf;
+
+        
+    }
+    outcol += sibl / float(SPECULAR_IBL_SAMPLES);
     
     //tone mapping
     outcol = TM_Exposure(outcol);
