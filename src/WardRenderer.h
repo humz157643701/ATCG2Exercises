@@ -34,7 +34,7 @@ public:
 	\param dt Last frame time
 	\param measure Unused in this implementation
 	*/
-	void render(Scene * scene, double dt, bool measure = false) override;
+	void render(Scene * scene, double dt, bool measure = false, bool clear= true) override;
 	//! Returns 0.0
 	virtual double getLastTransparentRenderTime() override;
 

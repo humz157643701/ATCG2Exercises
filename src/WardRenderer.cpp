@@ -60,14 +60,16 @@ WardRenderer::~WardRenderer()
 {
 }
 
-void WardRenderer::render(Scene * scene, double dt, bool measure)
+void WardRenderer::render(Scene * scene, double dt, bool measure, bool clear)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glClearColor(scene->clearColor.x, scene->clearColor.y, scene->clearColor.z, scene->clearColor.w);
-	glClearDepth(1.0f);
-	glEnable(GL_CULL_FACE);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+	if (clear)
+	{
+		glClearColor(scene->clearColor.x, scene->clearColor.y, scene->clearColor.z, scene->clearColor.w);
+		glClearDepth(1.0f);
+		glEnable(GL_CULL_FACE);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	}
 	// for rendering the environment map disable depth writes
 	glDepthMask(GL_FALSE);
 	glDisable(GL_DEPTH_TEST);

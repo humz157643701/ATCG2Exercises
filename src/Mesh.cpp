@@ -69,6 +69,11 @@ void Mesh::draw()
 	}
 }
 
+void Mesh::setMaterial(Material* m)
+{
+	material = m;
+}
+
 std::unique_ptr<Mesh> Mesh::createMesh(const std::vector<Vertex>& vd, const std::vector<Index>& id, const std::vector<VertexAttribute>& att)
 {
 	GLuint vbo, ibo, vao;

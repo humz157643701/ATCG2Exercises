@@ -43,6 +43,8 @@ public:
 	*/
 	void draw();
 
+	void setMaterial(Material* m);
+
 	//! Creates a new mesh from the given vertex and index data and configures the vertex attributes accorting to the last parameter
 	static std::unique_ptr<Mesh> createMesh(const std::vector<Vertex>& vd, const std::vector<Index>& id, const std::vector<VertexAttribute>& att);
 	//! Creates a new mesh from the given vertex and index data and configures the vertex attributes accorting to the last parameter. Additionally sets a material to be used for renderirng.

@@ -87,8 +87,35 @@ GLvoid Window::update(GLdouble dtime)
 
 GLvoid Window::render(GLdouble dtime)
 {
-	glViewport(0, 0, getFrameBufferWidth(), getFrameBufferHeight());
+	GLint newvp[] = { GLint(getFrameBufferWidth() / 2), getFrameBufferHeight() };
+	m_scene->m_camera.setViewport(newvp[0], newvp[1]);
+
+	for (auto x : m_scene->m_opaque_models.front().meshes)
+	{
+		x->setMaterial(m_scene->m_materials.front().get());
+	}
+
+	glViewport(0, 0, newvp[0], newvp[1]);
 	m_renderer->render(m_scene.get(), dtime);
+
+	//Set material of slate box to NN stuff
+	for (auto x : m_scene->m_opaque_models.front().meshes)
+	{
+		x->setMaterial(m_scene->m_materials.back().get());
+	}
+	glViewport(newvp[0], 0, newvp[0], getFrameBufferHeight());
+	//Render once via ward renderer foor the things we don't have a NN material of
+	m_renderer->render(m_scene.get(), dtime, false, false);
+	//Temp copy of our models. Should copy fine, I hope?
+	auto tempmodels = std::vector<Model>(m_scene->m_opaque_models.begin()+1, m_scene->m_opaque_models.end());
+	//Remove non axf material models
+	m_scene->m_opaque_models.erase(m_scene->m_opaque_models.begin() + 1, m_scene->m_opaque_models.end());
+	// TODO Render using ggx renderer
+
+
+	//Put models back in
+	m_scene->m_opaque_models.insert(m_scene->m_opaque_models.end(), tempmodels.begin(), tempmodels.end());
+
 	if (displayFPS)
 	{
 		textrenderer.draw();
