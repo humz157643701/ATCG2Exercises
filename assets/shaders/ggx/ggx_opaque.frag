@@ -96,9 +96,8 @@ vec3 Li_ambient_light(int i);
     
 //fresnel approximation
 vec3 fresnelSchlick(vec3 H, vec3 V, vec3 F0);
-vec3 fresnelSchlickAppr(vec3 H, vec3 V, vec3 F0);
 vec3 fresnelSchlickRoughness(vec3 H, vec3 V, vec3 F0, float roughness);
-float DistributionGGX(vec3 N, vec3 H, float roughness);
+float GGX_NDF(vec3 N, vec3 H, float roughness);
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness);
     
 //functions applying the shading model
@@ -187,7 +186,7 @@ void main()
         vec3 vsp_L = normalize(-dirlights[i].direction);
         vec3 Li = Li_directional_light(i);
         outcol += brdf(vsp_L, vsp_V, vsp_bump_normal, diffuse_albedo, specular_albedo, roughness) *
-                  //max(dot(vsp_bump_normal, vsp_L), 0.0) *
+                  max(dot(vsp_bump_normal, vsp_L), 0.0) *
                   Li;
     }
 
@@ -197,7 +196,7 @@ void main()
         vec3 vsp_L = normalize(pointlights[i].position - vsp_P);
         vec3 Li = Li_point_light(vsp_P, i);
         outcol += brdf(vsp_L, vsp_V, vsp_bump_normal, diffuse_albedo, specular_albedo, roughness) *
-                  //max(dot(vsp_bump_normal, vsp_L), 0.0) *
+                  max(dot(vsp_bump_normal, vsp_L), 0.0) *
                   Li;
     }
 
@@ -238,36 +237,31 @@ vec3 fresnelSchlick(vec3 H, vec3 V, vec3 F0)
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
-vec3 fresnelSchlickAppr(vec3 H, vec3 V, vec3 F0)
-{
-    float cosTheta = max(dot(H, V), 0.0);
-    return F0 + (1.0 - F0) * pow(2.0, ((-5.55473 * (cosTheta)) - 6.98316) * cosTheta);
-}
-
 vec3 fresnelSchlickRoughness(vec3 H, vec3 V, vec3 F0, float roughness)
 {
     float cosTheta = max(dot(H, V), 0.0);
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
-float DistributionGGX(vec3 N, vec3 H, float roughness)
+float GGX_NDF(vec3 N, vec3 H, float roughness)
 {
     float r2 = roughness * roughness;
     float r4 = r2 * r2;
-    float NdotH = max(dot(N, H), 0.0);
+    float NdotH  = max(dot(N, H), 0.0);
     float NdotH2 = NdotH * NdotH;
-    float Dr = r2 / (NdotH2 * (r4 - 1.0) + 1.0);
-    return (Dr * Dr) / PI;
+    float d = (NdotH2 * (r4 - 1.0) + 1.0);	
+    return r2 / (PI * d * d);
 }
 
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 {
     float NdotV = max(dot(N, V), 0.0);
     float NdotL = max(dot(N, L), 0.0);
-    float r2 = roughness * roughness;
-    float ra = r2 * 0.5;
-    float rm = 1.0 - ra;    
-    return ((1.0 / (NdotL * rm + ra)) * (1.0 / (NdotV * rm + ra))) / PI;
+    float r = (roughness + 1.0);
+    float k = (r * r) / 8.0;	
+    float G1 = NdotV / (NdotV * (1.0 - k) + k);
+    float G2 = NdotL / (NdotL * (1.0 - k) + k);
+    return G1 * G2;    
 }
  
 vec3 brdf(
@@ -281,12 +275,17 @@ vec3 brdf(
 {   
     // cook torrance with GGX NDF, Smith shadowing/masking and Fresnel-Schlick reflectance
     vec3 h = normalize(vsp_V + vsp_L);
-    vec3 diffuse = (diffuse_albedo * (vec3(1.0, 1.0, 1.0) - specular_albedo)) / PI;
-    float D = DistributionGGX(vsp_N, h, roughness);
+    float D = GGX_NDF(vsp_N, h, roughness);
     float G = GeometrySmith(vsp_N, vsp_V, vsp_L, roughness);
-    vec3 F = fresnelSchlickAppr(h, vsp_V, specular_albedo);
-    float NdotL = max(dot(vsp_N, vsp_L), 0.0);
-    return ((D * F * G / 4.0) * NdotL);// / vsp_L.z;    
+    vec3 F = fresnelSchlick(h, vsp_V, specular_albedo);
+   
+    vec3 n = D * F * G;
+    float d = 4.0 * max(dot(vsp_N, vsp_V), 0.0) * max(dot(vsp_N, vsp_L), 0.0);
+    vec3 specular = n / max(d, 1e-6);
+
+    vec3 diffuse = ((vec3(1.0) - F) * diffuse_albedo) / PI;
+
+    return diffuse + specular;
 }
 
 // vec3 brdf_s(
