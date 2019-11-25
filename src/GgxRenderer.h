@@ -49,6 +49,7 @@ private:
 	ShaderProgram m_skybox_shader;
 	//ShaderProgram transparent_shader;
 	std::unique_ptr<Texture> m_skybox;
+	std::unique_ptr<Texture> m_irradiance_map;
 
 	// framebuffers
 	GLuint m_fb_erconv;

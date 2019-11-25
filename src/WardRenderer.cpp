@@ -9,10 +9,14 @@ WardRenderer::WardRenderer(Scene* scn) :
 	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	// convert er environment map to cube map
 	m_skybox = Texture::TCB(GL_RGB32F, scn->m_skyboxres, scn->m_skyboxres, Texture::calculateMipMapLevels(scn->m_skyboxres, scn->m_skyboxres));
+	m_irradiance_map = Texture::TCB(GL_RGB32F, scn->m_skyboxres, scn->m_skyboxres, Texture::calculateMipMapLevels(scn->m_skyboxres, scn->m_skyboxres));
 	
 	glGenFramebuffers(1, &m_fb_erconv);
 	glBindFramebuffer(GL_FRAMEBUFFER, m_fb_erconv);
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, m_skybox->tex, 0);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, m_irradiance_map->tex, 0);
+	constexpr GLenum drawbfs[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+	glDrawBuffers(2, drawbfs);
 
 	// projection and view matrices for env map converison
 	glm::mat4 pmat = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
@@ -52,6 +56,17 @@ WardRenderer::WardRenderer(Scene* scn) :
 	m_skybox->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
 
 	m_skybox->unbind();
+
+	m_irradiance_map->bind(0);
+	m_irradiance_map->generateMipMap();
+	  
+	m_irradiance_map->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	m_irradiance_map->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	m_irradiance_map->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+	m_irradiance_map->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+	m_irradiance_map->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+	 
+	m_irradiance_map->unbind();
 	
 	glDeleteFramebuffers(1, &m_fb_erconv);
 }
@@ -93,6 +108,7 @@ void WardRenderer::render(Scene * scene, double dt, bool measure, bool clear, GL
 
 	m_opaque_shader.use();
 	m_opaque_shader.bindTex("skybox", m_skybox.get());
+	m_opaque_shader.bindTex("irradiance", m_irradiance_map.get());
 	m_opaque_shader.setUniform("skybox_res", static_cast<float>(scene->m_skyboxres));
 	m_opaque_shader.setUniform("skybox_lodlevels", static_cast<float>(m_skybox->miplevels));
 	scene->m_camera.bind(&m_opaque_shader, "camera");

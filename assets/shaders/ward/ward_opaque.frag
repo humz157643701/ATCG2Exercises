@@ -75,6 +75,7 @@ uniform AmbientLight ambientlights[MAX_AMBIENT_LIGHTS];
 uniform int ambientlightcount;
     
 uniform samplerCube skybox;
+uniform samplerCube irradiance;
 uniform float skybox_res;
 uniform float skybox_lodlevels;
 //material
@@ -95,6 +96,7 @@ vec3 Li_ambient_light(int i);
     
 //fresnel approximation
 float fresnelSchlick(vec3 H, vec3 V, float F0);
+float fresnelSchlickRoughness(vec3 H, vec3 V, float F0, float roughness);
     
 //functions applying the shading model
 vec3 brdf(
@@ -120,7 +122,7 @@ vec3 brdf_s(
     float transparency
 );
 
-vec3 ambientShade(vec3 diffuse_albedo, float fresnel_f0);
+vec3 ambientShade(vec3 diffuse_albedo, float fresnel_f0, vec3 N, vec3 L, float roughness);
     
 //tone mapping and gamma correction
 vec3 TM_Exposure(vec3 l);
@@ -221,11 +223,11 @@ void main()
                   Li;
     }
 
-    //ambient lights // replace with diffuse IBL later!
-    for(int i = 0; i < ambientlightcount; ++i)
-    {
-        outcol += ambientShade(diffuse_albedo, fresnel_f0) * Li_ambient_light(i); // TODO <- what about this?
-    }
+    outcol += ambientShade(diffuse_albedo,
+                        fresnel_f0,
+                        vsp_bump_normal,
+                        vsp_V,
+                        max(roughness.x, roughness.y)) * texture(irradiance, bump_tangent_to_world * vec3(0.0, 0.0, 1.0)).rgb;
 
     // specular IBL
     vec3 sibl = vec3(0.0);
@@ -246,15 +248,13 @@ void main()
         vec3 tsp_L = 2.0 * dot(tsp_V, h) * h - tsp_V;
         vec3 wsp_L = bump_tangent_to_world * tsp_L;
 
-        vec3 b = brdf_s(tsp_L, tsp_V, specular_albedo, roughness, aniso_rotation, fresnel_f0, displacement, transparency);
+        //vec3 b = brdf_s(tsp_L, tsp_V, specular_albedo, roughness, aniso_rotation, fresnel_f0, displacement, transparency);
         float w = 2.0 / (1.0 + (tsp_V.z / tsp_L.z));
         float F = fresnelSchlick(h, tsp_V, fresnel_f0);
 
-        vec3 pdf = (b / (F * specular_albedo * w));
+        //vec3 pdf = (1.0 / (F * specular_albedo * w));
         vec3 Li = texture(skybox, wsp_L, pow(max(roughness.x, roughness.y), SPECULAR_IBL_LOD_BIAS_POW) * skybox_lodlevels).rgb;
-        sibl += (Li * b * max(tsp_L.z, 0.0)) / max(pdf, 1e-6);
-
-        
+        sibl += Li * max(tsp_L.z, 0.0) * F * specular_albedo * w;        
     }
     outcol += sibl / float(SPECULAR_IBL_SAMPLES);
     
@@ -281,6 +281,12 @@ vec3 Li_point_light(vec3 fpos, int i)
 vec3 Li_ambient_light(int i)
 {
     return ambientlights[i].color;
+}
+
+float fresnelSchlickRoughness(vec3 H, vec3 V, float F0, float roughness)
+{
+    float cosTheta = max(dot(H, V), 0.0);
+    return F0 + (max(1.0 - roughness, F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
 float fresnelSchlick(vec3 H, vec3 V, float F0)
@@ -320,8 +326,7 @@ vec3 brdf(
     vec3 ks = specular_albedo * (1.0 / (PI * roughness.x * roughness.y)) * (1.0 / (4.0 * LdotH_prime_2 * Hz_prime_4)) * exp(-((Hx_prime_alphax_2 + Hy_prime_alphay_2) / Hz_prime_2));
     // fresnel term
     float F = fresnelSchlick(H, tsp_V, fresnel_f0);
-    
-    return kd + ks * F;
+    return kd + ks * F;//(1.0 - F) * kd + ks * F;
 }
 
 vec3 brdf_s(
@@ -349,9 +354,10 @@ vec3 brdf_s(
     return ks * F;
 }
  
-vec3 ambientShade(vec3 diffuse_albedo, float fresnel_f0)
+vec3 ambientShade(vec3 diffuse_albedo, float fresnel_f0, vec3 N, vec3 V, float roughness)
 {
-    return diffuse_albedo;
+    float f0 = mix(float((1.0 - fresnel_f0) < 1e-6), 0.12, fresnel_f0);       
+    return (diffuse_albedo / PI) * (1.0 - fresnelSchlickRoughness(N, V, f0, roughness));
 }
 
 vec3 TM_Exposure(vec3 l)
