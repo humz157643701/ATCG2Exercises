@@ -166,7 +166,7 @@ void main()
     vec2 tc = vertexData.uv * material.f_mscale;
 
     //read material properties
-    vec3 diffuse_albedo     = inverseGammaCorrect(texture(material.s_diffuse_albedo, tc).rgb);
+    vec3 diffuse_albedo     = texture(material.s_diffuse_albedo, tc).rgb;//inverseGammaCorrect(texture(material.s_diffuse_albedo, tc).rgb);
     vec3 specular_albedo    = inverseGammaCorrect(texture(material.s_specular_albedo, tc).rgb);
     vec3 vtsp_bump_normal    = normalize(texture(material.s_normals, tc).rgb * 2.0 - 1.0);
     float roughness          = texture(material.s_roughness, tc).r ;
