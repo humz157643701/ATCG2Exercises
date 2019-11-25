@@ -3,6 +3,10 @@
 Camera::Camera() :
 	m_width(800),
 	m_height(600),
+	m_vp_width(800),
+	m_vp_height(600),
+	m_vp_x(0),
+	m_vp_y(0),
 	m_fovy(90.0f),
 	m_near(0.1f),
 	m_far(100.0f),
@@ -14,6 +18,10 @@ Camera::Camera() :
 Camera::Camera(int width, int height, float fovy, float near, float far) :
 	m_width(static_cast<float>(width)),
 	m_height(static_cast<float>(height)),
+	m_vp_width(width),
+	m_vp_height(height),
+	m_vp_x(0),
+	m_vp_y(0),
 	m_fovy(fovy),
 	m_near(near),
 	m_far(far),
@@ -111,12 +119,29 @@ void Camera::rotateView(float pitch, float yaw)
 	m_viewDirty = true;
 }
 
-void Camera::setViewport(int width, int height)
+void Camera::updateGLViewport()
+{
+	glViewport(m_vp_x, m_vp_y, m_vp_width, m_vp_height);
+}
+
+void Camera::updateGLScissor()
+{
+	glScissor(m_vp_x, m_vp_y, m_vp_width, m_vp_height);
+}
+
+void Camera::setViewport(int width, int height, int x, int y, bool updateglvp)
 {
 	m_width = static_cast<float>(width);
 	m_height = static_cast<float>(height);
+	m_vp_width = width;
+	m_vp_height = height;
+	m_vp_x = x;
+	m_vp_y = y;
 	m_aspectratio = m_width / m_height;
 	m_projDirty = true;
+
+	if (updateglvp)
+		updateGLViewport();
 }
 
 void Camera::setFrustumBounds(float near, float far)

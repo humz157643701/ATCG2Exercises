@@ -1,7 +1,7 @@
-#include "GGXRenderer.h"
+#include "WardRenderer.h"
 #include <Primitives.h>
 
-GGXRenderer::GGXRenderer(Scene* scn) :
+WardRenderer::WardRenderer(Scene* scn) :
 	m_opaque_shader(ShaderProgram::createShaderProgram("assets/shaders/ward/ward_opaque.vert", "assets/shaders/ward/ward_opaque.frag")),
 	m_ermap_to_cubemap(ShaderProgram::createShaderProgram("assets/shaders/ward/envconv.vert", "assets/shaders/ward/envconv.frag", "assets/shaders/ward/envconv.geom")),
 	m_skybox_shader(ShaderProgram::createShaderProgram("assets/shaders/ward/skybox.vert", "assets/shaders/ward/skybox.frag"))
@@ -56,20 +56,20 @@ GGXRenderer::GGXRenderer(Scene* scn) :
 	glDeleteFramebuffers(1, &m_fb_erconv);
 }
 
-GGXRenderer::~GGXRenderer()
+WardRenderer::~WardRenderer()
 {
 }
 
-void GGXRenderer::render(Scene * scene, double dt, bool measure, bool clear)
+void WardRenderer::render(Scene * scene, double dt, bool measure, bool clear, GLuint fbo)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	if (clear)
-	{
-		glClearColor(scene->clearColor.x, scene->clearColor.y, scene->clearColor.z, scene->clearColor.w);
-		glClearDepth(1.0f);
-		glEnable(GL_CULL_FACE);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	}
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glEnable(GL_SCISSOR_TEST);
+	scene->m_camera.updateGLViewport();
+	scene->m_camera.updateGLScissor();
+	glClearColor(scene->clearColor.x, scene->clearColor.y, scene->clearColor.z, scene->clearColor.w);
+	glClearDepth(1.0f);
+	glEnable(GL_CULL_FACE);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	// for rendering the environment map disable depth writes
 	glDepthMask(GL_FALSE);
 	glDisable(GL_DEPTH_TEST);
@@ -111,10 +111,10 @@ void GGXRenderer::render(Scene * scene, double dt, bool measure, bool clear)
 
 	m_opaque_shader.setUniform("exposure", scene->tm_exposure);
 
-	scene->drawOpaqueWithMaterials(&m_opaque_shader);
+	scene->drawOpaqueWithMaterials(&m_opaque_shader, rendererid());
 }
 
-double GGXRenderer::getLastTransparentRenderTime()
+double WardRenderer::getLastTransparentRenderTime()
 {
 	return 0.0;
 }

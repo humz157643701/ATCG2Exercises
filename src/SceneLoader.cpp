@@ -9,6 +9,7 @@
 #include <OBJLoader.h>
 #include <AxfReader.hpp>
 #include <cstddef>
+#include <map>
 
 //internal types --------------------------------------------------------------------------------
 enum class TokType
@@ -729,6 +730,31 @@ void SceneLoader::parseEnvMap(Scanner * scan, Scene * scn)
 	}	
 }
 
+void SceneLoader::calcFormat(int channels, bool hdr, GLenum& internalformat, GLenum& format)
+{
+	switch (channels)
+	{
+	case 1:
+		internalformat = (hdr ? GL_R32F : GL_R8);
+		format = GL_RED;
+		break;
+	case 2:
+		internalformat = (hdr ? GL_RG32F : GL_RG8);
+		format = GL_RG;
+		break;
+	case 3:
+		internalformat = (hdr ? GL_RGB32F : GL_RGB8);
+		format = GL_RGB;
+		break;
+	case 4:
+		internalformat = (hdr ? GL_RGBA32F : GL_RGBA8);
+		format = GL_RGBA;
+	default:
+		throw std::logic_error("SCENE_LOADER: Invalid channel count. Texture format is not supported.");
+		break;
+	}
+}
+
 void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 {
 	std::size_t mid;
@@ -737,6 +763,7 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	GLenum datatype;
 	float max_aniso;
 	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &max_aniso);
+	stbi_set_flip_vertically_on_load(1);
 
 	mid = static_cast<std::size_t>(scan->lookahead().intvalue); scan->match(TokType::Int);
 	std::vector<std::string> strvals;
@@ -746,31 +773,35 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		strvals.push_back(scan->lookahead().value); scan->match(TokType::String);
 	}
 	
-	AxfReader::TextureType textures;
+	AxfReader::TextureType hdr_textures;
 	AxfReader::TextureDimType texture_dims;
-	int matformat = strvals.size() == 1 ? 0: 1; //0 = axf, 1 = ggx
-	if (matformat == 0)
+	std::map<std::string, std::vector<uint8_t>> ldr_textures;
+
+
+
+	int matformat = strvals.size() == 1 ? 1: 0; //1 = axf, 0 = ggx
+	if (matformat == 1)
 	{
-		if (!AxfReader::readAxF(strvals[0], textures, texture_dims))
+		if (!AxfReader::readAxF(strvals[0], hdr_textures, texture_dims))
 		{
 			throw std::logic_error(("SCENE_LOADER: Error reading AxF " + strvals[0]).c_str());
 		}
 		datatype = GL_FLOAT;
 	}
-	else if (matformat == 1)
+	else if (matformat == 0)
 	{
 		int x, y, chan;
-		auto vals = stbi_load(strvals[0].c_str(), &x, &y, &chan, 3);
-		textures["diffuse"] = std::vector<float>(vals, vals+(x*y));
+		auto vals = stbi_load(strvals[0].c_str(), &x, &y, &chan, 0);
+ 		ldr_textures["diffuse"] = std::vector<uint8_t>(vals, vals+(x * y * chan));
 		texture_dims["diffuse"] = { (uint32_t)y,(uint32_t)x,(uint32_t)chan };
-		vals = stbi_load(strvals[1].c_str(), &x, &y, &chan, 3);
-		textures["specular"] = std::vector<float>(vals, vals + (x * y));
+		vals = stbi_load(strvals[1].c_str(), &x, &y, &chan, 0);
+		ldr_textures["specular"] = std::vector<uint8_t>(vals, vals + (x * y * chan));
 		texture_dims["specular"] = { (uint32_t)y,(uint32_t)x,(uint32_t)chan };
-		vals = stbi_load(strvals[2].c_str(), &x, &y, &chan, 3);
-		textures["roughness"] = std::vector<float>(vals, vals + (x * y));
-		texture_dims["roughness"] = { (uint32_t)y,(uint32_t)x,(uint32_t)chan };
-		vals = stbi_load(strvals[3].c_str(), &x, &y, &chan, 3);
-		textures["normal"] = std::vector<float>(vals, vals + (x * y));
+		vals = stbi_load(strvals[2].c_str(), &x, &y, &chan, 0);
+		ldr_textures["lobes"] = std::vector<uint8_t>(vals, vals + (x * y * chan));
+		texture_dims["lobes"] = { (uint32_t)y,(uint32_t)x,(uint32_t)chan };
+		vals = stbi_load(strvals[3].c_str(), &x, &y, &chan, 0);
+		ldr_textures["normal"] = std::vector<uint8_t>(vals, vals + (x * y * chan));
 		texture_dims["normal"] = { (uint32_t)y,(uint32_t)x,(uint32_t)chan };
 		datatype = GL_UNSIGNED_BYTE;
 	}
@@ -779,45 +810,20 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 		throw std::logic_error("SCENE_LOADER: Wrong number of strings in material description. Expected 1 for AxF or 4 for NN ggx");
 	}
 
-	
-
-	
-	int dummy = 0;
-
 	Material mat;
 
 	mat.m_mid = mid;
 
-	if (textures.find("diffuse") == textures.end())
-		throw std::logic_error("SCENE_LOADER: No diffuse texture found in .axf file.");
-	switch (texture_dims["diffuse"].num_channels)
-	{
-	case 1:
-		internalformat = GL_R32F;
-		format = GL_RED;
-		break;
-	case 2:
-		internalformat = GL_RG32F;
-		format = GL_RG;
-		break;
-	case 3:
-		internalformat = GL_RGB32F;
-		format = GL_RGB;
-		break;
-	case 4:
-		internalformat = GL_RGBA32F;
-		format = GL_RGBA;
-	default:
-		throw std::logic_error("SCENE_LOADER: Invalid channel count for diffuse albedo.");
-		break;
-	}
+	if (((matformat == 1) && (hdr_textures.find("diffuse") == hdr_textures.end())) && ((matformat == 0) && (ldr_textures.find("diffuse") == ldr_textures.end())))
+		throw std::logic_error("SCENE_LOADER: No diffuse texture found.");
+	calcFormat(texture_dims["diffuse"].num_channels, matformat, internalformat, format);
 	std::unique_ptr<Texture> diff_albedo = Texture::T2DFromData(	
 		internalformat,
 		texture_dims["diffuse"].width,
 		texture_dims["diffuse"].height,
 		format,
 		datatype,
-		textures["diffuse"].data(),
+		matformat == 1 ? reinterpret_cast<void*>(hdr_textures["diffuse"].data()) : reinterpret_cast<void*>(ldr_textures["diffuse"].data()),
 		true
 	);
 
@@ -832,36 +838,16 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	scn->m_textures.push_back(std::move(diff_albedo));
 	mat.m_diffuse_albedo = scn->m_textures.back().get();
 
-	if (textures.find("specular") == textures.end())
-		throw std::logic_error("SCENE_LOADER: No specular texture found in .axf file.");
-	switch (texture_dims["specular"].num_channels)
-	{
-	case 1:
-		internalformat = matformat==0?GL_R32F:GL_RED;
-		format = GL_RED;
-		break;
-	case 2:
-		internalformat = matformat==0?GL_RG32F:GL_RG;
-		format = GL_RG;
-		break;
-	case 3:
-		internalformat = matformat == 0 ? GL_RGB32F : GL_RGB;
-		format = GL_RGB;
-		break;
-	case 4:
-		internalformat = matformat == 0 ? GL_RGBA32F : GL_RGBA;
-		format = GL_RGBA;
-	default:
-		throw std::logic_error("SCENE_LOADER: Invalid channel count for specular albedo.");
-		break;
-	}
+	if (((matformat == 1) && (hdr_textures.find("specular") == hdr_textures.end())) && ((matformat == 0) && (ldr_textures.find("specular") == ldr_textures.end())))
+		throw std::logic_error("SCENE_LOADER: No specular texture found.");
+	calcFormat(texture_dims["specular"].num_channels, matformat, internalformat, format);
 	std::unique_ptr<Texture> specular_albedo = Texture::T2DFromData(
 		internalformat,
 		texture_dims["specular"].width,
 		texture_dims["specular"].height,
 		format,
 		datatype,
-		textures["specular"].data(),
+		matformat == 1 ? reinterpret_cast<void*>(hdr_textures["specular"].data()) : reinterpret_cast<void*>(ldr_textures["specular"].data()),
 		true
 	);
 
@@ -876,39 +862,17 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	scn->m_textures.push_back(std::move(specular_albedo));
 	mat.m_specular_albedo = scn->m_textures.back().get();
 
-	if (matformat == 0)
-	{
-		if (textures.find("aniso") == textures.end())
-			throw std::logic_error("SCENE_LOADER: No aniso texture found in .axf file.");
 
-		switch (texture_dims["aniso"].num_channels)
-		{
-		case 1:
-			internalformat = matformat == 0 ? GL_R32F : GL_RED;
-			format = GL_RED;
-			break;
-		case 2:
-			internalformat = matformat == 0 ? GL_RG32F : GL_RG;
-			format = GL_RG;
-			break;
-		case 3:
-			internalformat = matformat == 0 ? GL_RGB32F : GL_RGB;
-			format = GL_RGB;
-			break;
-		case 4:
-			internalformat = matformat == 0 ? GL_RGBA32F : GL_RGBA;
-		format = GL_RGBA;
-		default:
-			throw std::logic_error("SCENE_LOADER: Invalid channel count for aniso.");
-			break;
-		}
+	if (((matformat == 1) && (hdr_textures.find("aniso") != hdr_textures.end())) || ((matformat == 0) && (ldr_textures.find("aniso") != ldr_textures.end())))
+	{
+		calcFormat(texture_dims["aniso"].num_channels, matformat, internalformat, format);
 		std::unique_ptr<Texture> aniso = Texture::T2DFromData(
 			internalformat,
 			texture_dims["aniso"].width,
 			texture_dims["aniso"].height,
 			format,
 			datatype,
-			textures["aniso"].data(),
+			matformat == 1 ? reinterpret_cast<void*>(hdr_textures["aniso"].data()) : reinterpret_cast<void*>(ldr_textures["aniso"].data()),
 			true
 		);
 
@@ -922,89 +886,54 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 
 		scn->m_textures.push_back(std::move(aniso));
 		mat.m_aniso_rotation = scn->m_textures.back().get();
+	}
+	else
+	{
+		mat.m_aniso_rotation = nullptr;
+	}
 	
 
 
-		if (textures.find("displacement") != textures.end())
-		{
-			switch (texture_dims["displacement"].num_channels)
-			{
-			case 1:
-				internalformat = matformat == 0 ? GL_R32F : GL_RED;
-				format = GL_RED;
-				break;
-			case 2:
-				internalformat = matformat == 0 ? GL_RG32F : GL_RG;
-				format = GL_RG;
-				break;
-			case 3:
-				internalformat = matformat == 0 ? GL_RGB32F : GL_RGB;
-				format = GL_RGB;
-				break;
-			case 4:
-				internalformat = matformat == 0 ? GL_RGBA32F : GL_RGBA;
-			format = GL_RGBA;
-			default:
-				throw std::logic_error("SCENE_LOADER: Invalid channel count for displacement.");
-				break;
-			}
-			std::unique_ptr<Texture> displacement = Texture::T2DFromData(
-				internalformat,
-				texture_dims["displacement"].width,
-				texture_dims["displacement"].height,
-				format,
-				datatype,
-				textures["displacement"].data(),
-				true
-			);
+	if (((matformat == 1) && (hdr_textures.find("displacement") != hdr_textures.end())) || ((matformat == 0) && (ldr_textures.find("displacement") != ldr_textures.end())))
+	{
+		calcFormat(texture_dims["displacement"].num_channels, matformat, internalformat, format);
+		std::unique_ptr<Texture> displacement = Texture::T2DFromData(
+			internalformat,
+			texture_dims["displacement"].width,
+			texture_dims["displacement"].height,
+			format,
+			datatype,
+			matformat == 1 ? reinterpret_cast<void*>(hdr_textures["displacement"].data()) : reinterpret_cast<void*>(ldr_textures["displacement"].data()),
+			true
+		);
 
-			displacement->bind(0);
-			displacement->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			displacement->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-			displacement->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
-			displacement->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
-			displacement->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
-			displacement->unbind();
+		displacement->bind(0);
+		displacement->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		displacement->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		displacement->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+		displacement->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+		displacement->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+		displacement->unbind();
 
-			scn->m_textures.push_back(std::move(displacement));
-			mat.m_displacement = scn->m_textures.back().get();
-		}
-		else
-		{
-			mat.m_displacement = nullptr;
-		}
+		scn->m_textures.push_back(std::move(displacement));
+		mat.m_displacement = scn->m_textures.back().get();
+	}
+	else
+	{
+		mat.m_displacement = nullptr;
+	}
 	
 
-		if (textures.find("fresnel") == textures.end())
-			throw std::logic_error("SCENE_LOADER: No fresnel texture found in .axf file.");
-		switch (texture_dims["fresnel"].num_channels)
-		{
-		case 1:
-			internalformat = matformat == 0 ? GL_R32F : GL_RED;
-			format = GL_RED;
-			break;
-		case 2:
-			internalformat = matformat == 0 ? GL_RG32F : GL_RG;
-			format = GL_RG;
-			break;
-		case 3:
-			internalformat = matformat == 0 ? GL_RGB32F : GL_RGB;
-			format = GL_RGB;
-			break;
-		case 4:
-			internalformat = matformat == 0 ? GL_RGBA32F : GL_RGBA;
-		format = GL_RGBA;
-		default:
-			throw std::logic_error("SCENE_LOADER: Invalid channel count for fresnel.");
-			break;
-		}
+	if (((matformat == 1) && (hdr_textures.find("fresnel") != hdr_textures.end())) || ((matformat == 0) && (ldr_textures.find("fresnel") != ldr_textures.end())))
+	{
+		calcFormat(texture_dims["fresnel"].num_channels, matformat, internalformat, format);
 		std::unique_ptr<Texture> fresnel = Texture::T2DFromData(
 			internalformat,
 			texture_dims["fresnel"].width,
 			texture_dims["fresnel"].height,
 			format,
 			datatype,
-			textures["fresnel"].data(),
+			matformat == 1 ? reinterpret_cast<void*>(hdr_textures["fresnel"].data()) : reinterpret_cast<void*>(ldr_textures["fresnel"].data()),
 			true
 		);
 
@@ -1018,134 +947,80 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 
 		scn->m_textures.push_back(std::move(fresnel));
 		mat.m_fresnel_f0 = scn->m_textures.back().get();
-
-		if (textures.find("lobes") == textures.end())
-			throw std::logic_error("SCENE_LOADER: No roughness texture found in .axf file.");
-		switch (texture_dims["lobes"].num_channels)
-		{
-		case 1:
-			internalformat = matformat == 0 ? GL_R32F : GL_RED;
-			format = GL_RED;
-			break;
-		case 2:
-			internalformat = matformat == 0 ? GL_RG32F : GL_RG;
-			format = GL_RG;
-			break;
-		case 3:
-			internalformat = matformat == 0 ? GL_RGB32F : GL_RGB;
-			format = GL_RGB;
-			break;
-		case 4:
-			internalformat = matformat == 0 ? GL_RGBA32F : GL_RGBA;
-		format = GL_RGBA;
-		default:
-			throw std::logic_error("SCENE_LOADER: Invalid channel count for roughness.");
-			break;
-		}
-		std::unique_ptr<Texture> roughness = Texture::T2DFromData(
-			internalformat,
-			texture_dims["lobes"].width,
-			texture_dims["lobes"].height,
-			format,
-			datatype,
-			textures["lobes"].data(),
-			true
-		);
-
-		roughness->bind(0);
-		roughness->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		roughness->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		roughness->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
-		roughness->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
-		roughness->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
-		roughness->unbind();
-
-		scn->m_textures.push_back(std::move(roughness));
-		mat.m_roughness = scn->m_textures.back().get();
-
-		if (textures.find("transparency") != textures.end())
-		{
-			switch (texture_dims["transparency"].num_channels)
-			{
-			case 1:
-				internalformat = matformat == 0 ? GL_R32F : GL_RED;
-				format = GL_RED;
-				break;
-			case 2:
-				internalformat = matformat == 0 ? GL_RG32F : GL_RG;
-				format = GL_RG;
-				break;
-			case 3:
-				internalformat = matformat == 0 ? GL_RGB32F : GL_RGB;
-				format = GL_RGB;
-				break;
-			case 4:
-				internalformat = matformat == 0 ? GL_RGBA32F : GL_RGBA;
-			format = GL_RGBA;
-			default:
-				throw std::logic_error("SCENE_LOADER: Invalid channel count for transparency.");
-				break;
-			}
-			std::unique_ptr<Texture> transparency = Texture::T2DFromData(
-				internalformat,
-				texture_dims["transparency"].width,
-				texture_dims["transparency"].height,
-				format,
-				datatype,
-				textures["transparency"].data(),
-				true
-			);
-
-			transparency->bind(0);
-			transparency->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			transparency->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-			transparency->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
-			transparency->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
-			transparency->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
-			transparency->unbind();
-
-			scn->m_textures.push_back(std::move(transparency));
-			mat.m_transparency = scn->m_textures.back().get();
-		}
-		else
-			mat.m_transparency = nullptr;
 	}
 	else
 	{
-		mat.m_displacement = nullptr;
+		mat.m_fresnel_f0 = nullptr;
+	}
+
+	
+
+	if (((matformat == 1) && (hdr_textures.find("lobes") == hdr_textures.end())) && ((matformat) && (ldr_textures.find("lobes") == ldr_textures.end())))
+		throw(std::logic_error("SCENE_LOADER: No roughness texture found."));	
+	calcFormat(texture_dims["lobes"].num_channels, matformat == 0, internalformat, format);
+	std::unique_ptr<Texture> roughness = Texture::T2DFromData(
+		internalformat,
+		texture_dims["lobes"].width,
+		texture_dims["lobes"].height,
+		format,
+		datatype,
+		matformat == 1 ? reinterpret_cast<void*>(hdr_textures["lobes"].data()) : reinterpret_cast<void*>(ldr_textures["lobes"].data()),
+		true
+	);
+
+	roughness->bind(0);
+	roughness->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	roughness->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	roughness->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+	roughness->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+	roughness->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+	roughness->unbind();
+
+	scn->m_textures.push_back(std::move(roughness));
+	mat.m_roughness = scn->m_textures.back().get();
+	
+
+	
+
+	if (((matformat == 1) && (hdr_textures.find("transparency") != hdr_textures.end())) || ((matformat) && (ldr_textures.find("transparency") != ldr_textures.end())))
+	{
+		calcFormat(texture_dims["transparency"].num_channels, matformat == 0, internalformat, format);
+		std::unique_ptr<Texture> transparency = Texture::T2DFromData(
+			internalformat,
+			texture_dims["transparency"].width,
+			texture_dims["transparency"].height,
+			format,
+			datatype,
+			matformat == 1 ? reinterpret_cast<void*>(hdr_textures["transparency"].data()) : reinterpret_cast<void*>(ldr_textures["transparency"].data()),
+			true
+		);
+
+		transparency->bind(0);
+		transparency->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		transparency->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		transparency->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
+		transparency->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
+		transparency->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
+		transparency->unbind();
+
+		scn->m_textures.push_back(std::move(transparency));
+		mat.m_transparency = scn->m_textures.back().get();
+	}
+	else
+	{
 		mat.m_transparency = nullptr;
 	}
 
-	if (textures.find("normal") == textures.end())
-		throw std::logic_error("SCENE_LOADER: No normal texture found in .axf file.");
-	switch (texture_dims["normal"].num_channels)
-	{
-	case 1:
-		internalformat = matformat == 0 ? GL_R32F : GL_RED;
-		format = GL_RED;
-		break;
-	case 2:
-		internalformat = matformat == 0 ? GL_RG32F : GL_RG;
-		format = GL_RG;
-		break;
-	case 3:
-		internalformat = matformat == 0 ? GL_RGB32F : GL_RGB;
-		format = GL_RGB;
-		break;
-	case 4:
-		internalformat = matformat == 0 ? GL_RGBA32F : GL_RGBA;
-	format = GL_RGBA;
-	default:
-		throw std::logic_error("SCENE_LOADER: Invalid channel count for normal.");
-		break;
-	}
+	if (((matformat == 1) && (hdr_textures.find("normal") == hdr_textures.end())) && ((matformat) && (ldr_textures.find("normal") == ldr_textures.end())))
+		throw std::logic_error("SCENE_LOADER: No normal texture found.");
+	calcFormat(texture_dims["normal"].num_channels, matformat == 0, internalformat, format);
 	std::unique_ptr<Texture> normal = Texture::T2DFromData(
 		internalformat,
 		texture_dims["normal"].width,
 		texture_dims["normal"].height,
 		format,
 		datatype,
-		textures["normal"].data(),
+		matformat == 1 ? reinterpret_cast<void*>(hdr_textures["normal"].data()) : reinterpret_cast<void*>(ldr_textures["normal"].data()),
 		true
 	);
 
@@ -1157,56 +1032,10 @@ void SceneLoader::parseMaterial(Scanner * scan, Scene * scn)
 	normal->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
 	normal->unbind();
 
-	scn->m_textures.push_back(std::move(normal));
+	scn->m_textures.push_back(std::move(normal)); 
 	mat.m_normals = scn->m_textures.back().get();
 
-	if (matformat == 1)
-	{
-
-		if (textures.find("roughness") == textures.end())
-			throw std::logic_error("SCENE_LOADER: No roughness texture found in .axf file.");
-		switch (texture_dims["roughness"].num_channels)
-		{
-		case 1:
-			internalformat = matformat == 0 ? GL_R32F : GL_RED;
-			format = GL_RED;
-			break;
-		case 2:
-			internalformat = matformat == 0 ? GL_RG32F : GL_RG;
-			format = GL_RG;
-			break;
-		case 3:
-			internalformat = matformat == 0 ? GL_RGB32F : GL_RGB;
-			format = GL_RGB;
-			break;
-		case 4:
-			internalformat = matformat == 0 ? GL_RGBA32F : GL_RGBA;
-		format = GL_RGBA;
-		default:
-			throw std::logic_error("SCENE_LOADER: Invalid channel count for normal.");
-			break;
-		}
-		std::unique_ptr<Texture> roughness = Texture::T2DFromData(
-			internalformat,
-			texture_dims["roughness"].width,
-			texture_dims["roughness"].height,
-			format,
-			datatype,
-			textures["roughness"].data(),
-			true
-		);
-
-		roughness->bind(0);
-		roughness->setTexParam(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		roughness->setTexParam(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		roughness->setTexParam(GL_TEXTURE_WRAP_S, GL_REPEAT);
-		roughness->setTexParam(GL_TEXTURE_WRAP_T, GL_REPEAT);
-		roughness->setTexParamArr(GL_TEXTURE_MAX_ANISOTROPY, &max_aniso, 1);
-		roughness->unbind();
-
-		scn->m_textures.push_back(std::move(roughness));
-		mat.m_roughness = scn->m_textures.back().get();
-	}
+	mat.renderer_id = matformat == 1 ? 1 : 2;
 
 	scn->m_materials.push_back(std::unique_ptr<Material>(new Material(mat)));
 }

@@ -1,34 +1,34 @@
 #include "Scene.h"
 
-void Scene::drawOpaque(ShaderProgram * shader)
+void Scene::drawOpaque(ShaderProgram * shader, size_t rid)
 {
 	for (auto& m :m_opaque_models)
 	{
-		m.draw(shader);
+		m.draw(shader, rid);
 	}
 }
 
-void Scene::drawOpaqueWithMaterials(ShaderProgram * shader)
+void Scene::drawOpaqueWithMaterials(ShaderProgram * shader, size_t rid)
 {
 	for (auto& m : m_opaque_models)
 	{
-		m.drawWithMaterials(shader);
+		m.drawWithMaterials(shader, rid);
 	}
 }
 
-void Scene::drawTransparent(ShaderProgram * shader)
+void Scene::drawTransparent(ShaderProgram * shader, size_t rid)
 {
 	for (auto& m : m_transparent_models)
 	{
-		m.draw(shader);
+		m.draw(shader, rid);
 	}
 }
 
-void Scene::drawTransparentWithMaterials(ShaderProgram * shader)
+void Scene::drawTransparentWithMaterials(ShaderProgram * shader, size_t rid)
 {
 	for (auto& m : m_transparent_models)
 	{
-		m.drawWithMaterials(shader);
+		m.drawWithMaterials(shader, rid);
 	}
 }
 

@@ -50,22 +50,29 @@ Mesh & Mesh::operator=(Mesh && other)
 	return *this;
 }
 
-void Mesh::drawWithMaterial(ShaderProgram * shader)
+void Mesh::drawWithMaterial(ShaderProgram * shader, size_t rid)
 {
 	assert(material);
-	shader->saveTU();
-	material->bind(shader, mscale);
-	draw();
-	shader->restoreTU();
+	if (rid == 0 || material->renderer_id == rid)
+	{
+		shader->saveTU();
+		material->bind(shader, mscale);
+		draw();
+		shader->restoreTU();
+	}
 }
 
-void Mesh::draw()
+void Mesh::draw(size_t rid)
 {
-	if (vao)
+	assert(material);
+	if (material == nullptr || rid == 0 || material->renderer_id == rid)
 	{
-		glBindVertexArray(vao);
-		glDrawElements(GL_TRIANGLES, numIndices, GL_UNSIGNED_INT, 0);
-		glBindVertexArray(0);
+		if (vao)
+		{
+			glBindVertexArray(vao);
+			glDrawElements(GL_TRIANGLES, numIndices, GL_UNSIGNED_INT, 0);
+			glBindVertexArray(0);
+		}
 	}
 }
 

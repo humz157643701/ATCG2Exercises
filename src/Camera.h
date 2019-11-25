@@ -26,6 +26,11 @@ class Camera
 	float m_near;
 	float m_far;
 
+	int m_vp_width;
+	int m_vp_height;
+	int m_vp_x;
+	int m_vp_y;
+
 	glm::mat4 m_viewMatrix;
 	glm::mat4 m_projectionMatrix;
 
@@ -124,7 +129,9 @@ public:
 	\param width Desired horizontal resolution
 	\param height Desired vertical resolution
 	*/
-	void setViewport(int width, int height);
+	void setViewport(int width, int height, int x = 0, int y = 0, bool updateglvp = false);
+	void updateGLViewport();
+	void updateGLScissor();
 	/*!
 	\brief Changes the position of the camera's near and far planes
 	\param near Desired near plane position

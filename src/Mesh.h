@@ -37,11 +37,11 @@ public:
 	\brief Sets the mesh's material uniforms and draws the mesh
 	\param shader Shader for which the uniforms shall be set
 	*/
-	void drawWithMaterial(ShaderProgram* shader);
+	void drawWithMaterial(ShaderProgram* shader, size_t rendererid = 0);
 	/**
 	\brief Draws the mesh without setting any material uniforms
 	*/
-	void draw();
+	void draw(size_t rendererid = 0);
 
 	void setMaterial(Material* m);
 

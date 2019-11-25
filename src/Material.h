@@ -50,7 +50,10 @@ public:
 	Texture* m_displacement;
 	Texture* m_transparency;
 
-	std::size_t m_mid;	
+	std::size_t m_mid;
+
+	//! Renderer id
+	std::size_t renderer_id;
 };
 
 #endif

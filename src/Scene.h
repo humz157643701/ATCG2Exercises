@@ -35,7 +35,7 @@ public:
 	//! All opaque models
 	std::vector<Model> m_opaque_models;
 	//! All transparent models
-	std::vector<Model> m_transparent_models;
+	std::vector<Model> m_transparent_models;	
 	//! All directional lights
 	std::vector<DirectionalLight> m_dirlights;
 	//! ALl point lights
@@ -56,22 +56,22 @@ public:
 	\brief Draws every opaque model without setting material uniforms
 	\param shader Shader being used for drawing
 	*/
-	void drawOpaque(ShaderProgram* shader);
+	void drawOpaque(ShaderProgram* shader, std::size_t rendererid = 0);
 	/**
 	\brief Draws every opaque model with setting material uniforms
 	\param shader Shader being used for drawing
 	*/
-	void drawOpaqueWithMaterials(ShaderProgram* shader);
+	void drawOpaqueWithMaterials(ShaderProgram* shader, std::size_t rendererid = 0);
 	/**
 	\brief Draws every transparent model without setting material uniforms
 	\param shader Shader being used for drawing
 	*/
-	void drawTransparent(ShaderProgram* shader);
+	void drawTransparent(ShaderProgram* shader, std::size_t rendererid = 0);
 	/**
 	\brief Draws every transparent model with setting material uniforms
 	\param shader Shader being used for drawing
 	*/
-	void drawTransparentWithMaterials(ShaderProgram* shader);
+	void drawTransparentWithMaterials(ShaderProgram* shader, std::size_t rendererid = 0);
 	/**
 	\brief Triggers a simulation step for every entity that needs framerate-independent simulation
 	\param dt Delta time for the integrator to advance the system

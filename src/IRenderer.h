@@ -9,6 +9,7 @@ Renderer interface
 
 #ifndef _IRENDERER_H_
 #define _IRENDERER_H_
+#include <libheaders.h>
 
 class Scene;
 class IRenderer
@@ -26,11 +27,12 @@ public:
 	\param dt Last frame time
 	\param measure Enables/disables the measurement for this frame
 	*/
-	virtual void render(Scene* scene, double dt, bool measure = false, bool clear = true) = 0;
+	virtual void render(Scene* scene, double dt, bool measure = false, bool clear = true, GLuint fbo = 0) = 0;
 	/*!
 	\brief Returns the last measured time for transparent rendering and merging in milliseconds
 	*/
 	virtual double getLastTransparentRenderTime() = 0;
+	virtual size_t rendererid() const = 0;
 	virtual ~IRenderer() {};
 };
 

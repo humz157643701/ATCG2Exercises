@@ -115,6 +115,8 @@ private:
 	static void parseClearColor(Scanner* scan, Scene* scn);
 	static void parseMaterial(Scanner* scan, Scene* scn);
 	static void parseEnvMap(Scanner* scan, Scene* scn);
+	
+	static void calcFormat(int channels, bool hdr, GLenum& internalformat, GLenum& format);
 };
 
 

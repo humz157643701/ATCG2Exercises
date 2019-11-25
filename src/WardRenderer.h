@@ -34,9 +34,14 @@ public:
 	\param dt Last frame time
 	\param measure Unused in this implementation
 	*/
-	void render(Scene * scene, double dt, bool measure = false, bool clear= true) override;
+	void render(Scene * scene, double dt, bool measure = false, bool clear= true, GLuint fbo = 0) override;
 	//! Returns 0.0
 	virtual double getLastTransparentRenderTime() override;
+
+	virtual size_t rendererid() const  override
+	{
+		return 1;
+	}
 
 private:
 	ShaderProgram m_opaque_shader;

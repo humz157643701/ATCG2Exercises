@@ -2,9 +2,9 @@
 #include <Primitives.h>
 
 GgxRenderer::GgxRenderer(Scene* scn) :
-	m_opaque_shader(ShaderProgram::createShaderProgram("assets/shaders/ward/ggx_opaque.vert", "assets/shaders/ward/ggx_opaque.frag")),
-	m_ermap_to_cubemap(ShaderProgram::createShaderProgram("assets/shaders/ward/envconv.vert", "assets/shaders/ward/envconv.frag", "assets/shaders/ward/envconv.geom")),
-	m_skybox_shader(ShaderProgram::createShaderProgram("assets/shaders/ward/skybox.vert", "assets/shaders/ward/skybox.frag"))
+	m_opaque_shader(ShaderProgram::createShaderProgram("assets/shaders/ggx/ggx_opaque.vert", "assets/shaders/ggx/ggx_opaque.frag")),
+	m_ermap_to_cubemap(ShaderProgram::createShaderProgram("assets/shaders/ggx/envconv.vert", "assets/shaders/ggx/envconv.frag", "assets/shaders/ggx/envconv.geom")),
+	m_skybox_shader(ShaderProgram::createShaderProgram("assets/shaders/ggx/skybox.vert", "assets/shaders/ggx/skybox.frag"))
 {
 	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	// convert er environment map to cube map
@@ -60,16 +60,30 @@ GgxRenderer::~GgxRenderer()
 {
 }
 
-void GgxRenderer::render(Scene * scene, double dt, bool measure, bool clear)
+void GgxRenderer::render(Scene * scene, double dt, bool measure, bool clear, GLuint fbo)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	if (clear)
-	{
-		glClearColor(scene->clearColor.x, scene->clearColor.y, scene->clearColor.z, scene->clearColor.w);
-		glClearDepth(1.0f);
-		glEnable(GL_CULL_FACE);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	}
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glEnable(GL_SCISSOR_TEST);
+	scene->m_camera.updateGLViewport();
+	scene->m_camera.updateGLScissor();
+	glClearColor(scene->clearColor.x, scene->clearColor.y, scene->clearColor.z, scene->clearColor.w);
+	glClearDepth(1.0f);
+	glEnable(GL_CULL_FACE);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	// for rendering the environment map disable depth writes
+	glDepthMask(GL_FALSE);
+	glDisable(GL_DEPTH_TEST);
+	// we're rendering the inside of a cube, so cull front faces
+	glCullFace(GL_BACK); // excuse me, WTF?!
+
+	// render environment map
+	m_skybox_shader.use();
+	m_skybox_shader.bindTex("u_skybox", m_skybox.get());
+	m_skybox_shader.setUniform("u_view_matrix", scene->m_camera.getViewRotationMatrix(), false);
+	m_skybox_shader.setUniform("u_projection_matrix", scene->m_camera.getProjectionMatrix(), false);
+	m_skybox_shader.setUniform("exposure", scene->tm_exposure);
+	Primitives::drawNDCCube();
+
 	// render opaque geometry
 	// enable depth writes
 	glEnable(GL_DEPTH_TEST);
@@ -97,7 +111,7 @@ void GgxRenderer::render(Scene * scene, double dt, bool measure, bool clear)
 
 	m_opaque_shader.setUniform("exposure", scene->tm_exposure);
 
-	scene->drawOpaqueWithMaterials(&m_opaque_shader);
+	scene->drawOpaqueWithMaterials(&m_opaque_shader, rendererid());
 }
 
 double GgxRenderer::getLastTransparentRenderTime()

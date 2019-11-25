@@ -86,35 +86,13 @@ GLvoid Window::update(GLdouble dtime)
 }
 
 GLvoid Window::render(GLdouble dtime)
-{
-	GLint newvp[] = { GLint(getFrameBufferWidth() / 2), getFrameBufferHeight() };
-	m_scene->m_camera.setViewport(newvp[0], newvp[1]);
+{	
+	m_scene->m_camera.setViewport(static_cast<GLint>(getFrameBufferWidth() / 2), getFrameBufferHeight(), 0, 0);
+	m_wardrenderer->render(m_scene.get(), dtime);
 
-	for (auto& x : m_scene->m_opaque_models.front().meshes)
-	{
-		x->setMaterial(m_scene->m_materials.front().get());
-	}
-
-	glViewport(0, 0, newvp[0], newvp[1]);
-	m_renderer->render(m_scene.get(), dtime);
-
-	//Set material of slate box to NN stuff
-	for (auto& x : m_scene->m_opaque_models.front().meshes)
-	{
-		x->setMaterial(m_scene->m_materials.back().get());
-	}
-	glViewport(newvp[0], 0, newvp[0], getFrameBufferHeight());
-	//Render once via ward renderer foor the things we don't have a NN material of
-	m_renderer->render(m_scene.get(), dtime, false, false);
-	//Temp copy of our models. Should copy fine, I hope?
-	auto tempmodels = std::vector<Model>(m_scene->m_opaque_models.begin()+1, m_scene->m_opaque_models.end());
-	//Remove non axf material models
-	m_scene->m_opaque_models.erase(m_scene->m_opaque_models.begin() + 1, m_scene->m_opaque_models.end());
-	// TODO Render using ggx renderer
-	m_fallbackRenderer->render(m_scene.get(), dtime, false, false);
-	//Put models back in
-	m_scene->m_opaque_models.insert(m_scene->m_opaque_models.end(), tempmodels.begin(), tempmodels.end());
-
+	m_scene->m_camera.setViewport(static_cast<GLint>(getFrameBufferWidth() / 2), getFrameBufferHeight(), static_cast<GLint>(getFrameBufferWidth() / 2), 0);
+	m_ggxrenderer->render(m_scene.get(), dtime);
+	
 	if (displayFPS)
 	{
 		textrenderer.draw();
@@ -135,8 +113,8 @@ GLvoid Window::init()
 	m_spline_speed = 0.1f;
 
 	// create renderer
-	m_renderer = std::unique_ptr<WardRenderer>(new WardRenderer(m_scene.get()));
-	m_fallbackRenderer = std::unique_ptr<GgxRenderer>(new GgxRenderer(m_scene.get()));
+	m_wardrenderer = std::unique_ptr<WardRenderer>(new WardRenderer(m_scene.get()));
+	m_ggxrenderer = std::unique_ptr<GgxRenderer>(new GgxRenderer(m_scene.get()));
 	m_updateScene = true;
 
 	lockview = false;
@@ -160,8 +138,8 @@ void Window::onFrameBufferResize(int width, int height)
 {
 	m_scene->m_camera.setViewport(width, height);
 	// recreate renderer
-	m_renderer.reset(new WardRenderer(m_scene.get()));
-	m_fallbackRenderer.reset(new GgxRenderer(m_scene.get()));
+	m_wardrenderer.reset(new WardRenderer(m_scene.get()));
+	m_ggxrenderer.reset(new GgxRenderer(m_scene.get()));
 }
 
 void Window::onKey(Key key, Action action, Modifier modifier)

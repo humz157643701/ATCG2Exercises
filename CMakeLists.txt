@@ -10,10 +10,6 @@ list(APPEND INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/src")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Camera.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Camera.cpp")
-# list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/DepthPeelRenderer.h")
-# list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/DepthPeelRenderer.cpp")
-# list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/WeightedBlendedOITRenderer.h")
-# list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/WeightedBlendedOITRenderer.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/IRenderer.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Material.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Material.cpp")
@@ -21,8 +17,6 @@ list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Mesh.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Mesh.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Model.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Model.cpp")
-# list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/OpaqueRenderer.h")
-# list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/OpaqueRenderer.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Primitives.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Primitives.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Scene.h")
@@ -31,8 +25,6 @@ list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Window.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Window.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Texture.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Texture.cpp")
-# list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Framebuffer.h")
-# list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Framebuffer.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Shader.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Shader.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Transform.h")
@@ -45,21 +37,6 @@ list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/WardRenderer.cpp")
 
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/GgxRenderer.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/GgxRenderer.cpp")
-
-#linked list version of the algorithms
-#list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/INDLLWBT.h")
-#list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/INDLLWBT.cpp")
-
-#list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/LinkedListWBTv2.h")
-#list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/LinkedListWBTv2.cpp")
-
-#layered rendering version of the algortihms
-#list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/INDLRWBT.h")
-#list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/INDLRWBT.cpp")
-
-#particle stuff
-#list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/ParticleEmitter.h")
-#list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/ParticleEmitter.cpp")
 
 #bspline class
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/BSpline.h")
