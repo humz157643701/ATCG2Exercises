@@ -95,7 +95,8 @@ GLvoid Window::render(GLdouble dtime)
 	
 	if (displayFPS)
 	{
-		m_scene->m_camera.setViewport(0, 0, getFrameBufferWidth(), getFrameBufferHeight(), true);
+		m_scene->m_camera.setViewport(0, 0, getFrameBufferWidth(), getFrameBufferHeight());
+		m_scene->m_camera.updateGLViewport();
 		m_scene->m_camera.updateGLScissor();
 		textrenderer.draw();
 	}

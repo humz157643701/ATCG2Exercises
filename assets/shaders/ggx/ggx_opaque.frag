@@ -5,7 +5,7 @@
 #define MAX_DIR_LIGHTS 2
 #define MAX_POINT_LIGHTS 8
 #define MAX_AMBIENT_LIGHTS 2
-#define SPECULAR_IBL_SAMPLES 50
+#define SPECULAR_IBL_SAMPLES 32
 #define SPECULAR_IBL_LOD_BIAS_POW 0.85
 #define DIELECTRIC_F0 0.04
     
@@ -76,6 +76,7 @@ uniform AmbientLight ambientlights[MAX_AMBIENT_LIGHTS];
 uniform int ambientlightcount;
     
 uniform samplerCube skybox;
+uniform samplerCube irradiance; 
 uniform float skybox_res;
 uniform float skybox_lodlevels;
 //material
@@ -110,15 +111,16 @@ vec3 brdf(
     float roughness
 );
 
-// vec3 brdf_s(
-//     vec3 vsp_V,
-//     vec3 vsp_N,
-//     vec3 diffuse_albedo,
-//     vec3 specular_albedo,
-//     vec2 roughness
-// );
+vec3 brdf_s(
+    vec3 vsp_L,
+    vec3 vsp_V,
+    vec3 vsp_N,
+    vec3 diffuse_albedo,
+    vec3 specular_albedo,
+    vec2 roughness
+);
 
-vec3 ambientShade(vec3 diffuse_albedo, vec3 specular_albedo);
+vec3 ambientShade(vec3 diffuse_albedo, vec3 fresnel_f0, vec3 N, vec3 V, float roughness);
     
 //tone mapping and gamma correction
 vec3 TM_Exposure(vec3 l);
@@ -126,8 +128,6 @@ vec3 gammaCorrect(vec3 c);
 vec3 inverseGammaCorrect(vec3 c);
     
 float getLuminance(vec3 linearRGB);
-
-mat3 rotationZ(float angle);
 
 float RadicalInverse_VdC(uint bits) 
 {
@@ -168,7 +168,7 @@ void main()
     //read material properties
     vec3 diffuse_albedo     = inverseGammaCorrect(texture(material.s_diffuse_albedo, tc).rgb);
     vec3 specular_albedo    = inverseGammaCorrect(texture(material.s_specular_albedo, tc).rgb);
-    vec3 vtsp_bump_normal    = normalize(normalize(texture(material.s_normals, tc).rgb) * 2.0 - 1.0);
+    vec3 vtsp_bump_normal    = normalize(texture(material.s_normals, tc).rgb * 2.0 - 1.0);
     float roughness          = texture(material.s_roughness, tc).r ;
     float displacement      = texture(material.s_displacement, tc).r;
     float transparency      = texture(material.s_transparency, tc).r;
@@ -180,6 +180,10 @@ void main()
     vec3 vsp_P = vertexData.viewspacePosition;    
     vec3 vsp_V = normalize(-vsp_P);
 
+
+    // tangent space to world space
+    mat3 view_to_world = transpose(mat3(camera.viewMatrix));
+    //vec3 vsp_R = 2.0 * dot(vsp_V, vsp_bump_normal) * vsp_bump_normal - vsp_V;
     //directional lights
     for(int i = 0; i < dirlightcount; ++i)
     {   
@@ -200,12 +204,52 @@ void main()
                   Li;
     }
 
-    //ambient lights // replace with diffuse IBL later!
-    for(int i = 0; i < ambientlightcount; ++i)
-    {
-        outcol += ambientShade(diffuse_albedo, specular_albedo) * Li_ambient_light(i); // TODO <- what about this?
-    }
+    // diffuse ibl
+    outcol += ambientShade(diffuse_albedo, specular_albedo, vsp_bump_normal, vsp_V, roughness) * texture(irradiance, view_to_world * vsp_bump_normal).rgb;
     
+    // // specular IBL
+    // vec3 sibl = vec3(0.0);
+
+    // // idea: choose sample count based on roughness
+    // float r2 = roughness * roughness;
+
+    // vec3 up = vec3(0.0, 1.0, 0.0);
+    // vec3 right = normalize(cross(up, vsp_bump_normal));
+    // up = normalize(cross(vsp_bump_normal, right));
+
+    // for(int i = 0; i < SPECULAR_IBL_SAMPLES; ++i)
+    // {
+    //     vec2 usamp = Hammersley(i, SPECULAR_IBL_SAMPLES);
+        
+    //     float htheta = acos(sqrt((1.0 - usamp.x) / (usamp.y * (r2 - 1.0) + 1.0)));
+    //     float hphi = 2.0 * PI * usamp.x;       
+
+    //     vec3 h = vec3(
+    //         sin(htheta) * cos(hphi),            
+    //         sin(htheta) * sin(hphi),
+    //         cos(htheta),
+    //     );
+
+    //     h = tbn * h;        
+
+    //     vec3 vsp_L = 2.0 * dot(vsp_V, h) * h - vsp_V;
+
+    //     float G = GeometrySmith(vsp_bump_normal, vsp_V, vsp_L, roughness);
+    //     vec3 F = fresnelSchlick(h, vsp_V, specular_albedo);
+
+    //     float LdotH = max(dot(vsp_L, h), 0.0); 
+    //     float NdotH = max(dot(vsp_bump_normal, h), 0.0); 
+    //     float VdotN = max(dot(vsp_L, vsp_bump_normal), 0.0);
+    //     float LdotN = max(dot(vsp_L, vsp_bump_normal), 0.0);
+
+    //     vec3 b = (F * G * LdotH) / (VdotN * NdotH);
+       
+    //     vec3 wsp_L = view_to_world * vsp_L;
+    //     vec3 Li = texture(skybox, wsp_L, pow(roughness, SPECULAR_IBL_LOD_BIAS_POW) * skybox_lodlevels).rgb;
+    //     sibl += b * Li * LdotN;             
+    // }
+    // outcol += sibl / float(SPECULAR_IBL_SAMPLES);
+
     //tone mapping
     outcol = TM_Exposure(outcol);
     //gamma correction
@@ -288,20 +332,31 @@ vec3 brdf(
     return diffuse + specular;
 }
 
-// vec3 brdf_s(
-//     vec3 vsp_V,
-//     vec3 vsp_N,
-//     vec3 diffuse_albedo,
-//     vec3 specular_albedo,
-//     vec2 roughness
-// )
-// {
-   
-// }
- 
-vec3 ambientShade(vec3 diffuse_albedo, vec3 specular_albedo)
+vec3 brdf_s(
+    vec3 vsp_L,
+    vec3 vsp_V,
+    vec3 vsp_N,
+    vec3 diffuse_albedo,
+    vec3 specular_albedo,
+    float roughness
+)
 {
-    return (diffuse_albedo * (vec3(1.0, 1.0, 1.0) - specular_albedo)) / PI;
+   // cook torrance with GGX NDF, Smith shadowing/masking and Fresnel-Schlick reflectance
+    vec3 h = normalize(vsp_V + vsp_L);
+    float D = GGX_NDF(vsp_N, h, roughness);
+    float G = GeometrySmith(vsp_N, vsp_V, vsp_L, roughness);
+    vec3 F = fresnelSchlick(h, vsp_V, specular_albedo);
+   
+    vec3 n = D * F * G;
+    float d = 4.0 * max(dot(vsp_N, vsp_V), 0.0) * max(dot(vsp_N, vsp_L), 0.0);
+    vec3 specular = n / max(d, 1e-6);
+
+    return specular;
+}
+ 
+vec3 ambientShade(vec3 diffuse_albedo, vec3 fresnel_f0, vec3 N, vec3 V, float roughness)
+{      
+    return (diffuse_albedo / PI) * (vec3(1.0) - fresnelSchlickRoughness(N, V, fresnel_f0, roughness));
 }
 
 vec3 TM_Exposure(vec3 l)
