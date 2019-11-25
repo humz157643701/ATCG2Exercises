@@ -2,7 +2,7 @@
 #include <fstream>
 #include <SceneLoader.h>
 #include <WardRenderer.h>
-
+#include <GgxRenderer.h>
 Window::Window() :
 	GameWindow(
 		1280,
@@ -111,8 +111,7 @@ GLvoid Window::render(GLdouble dtime)
 	//Remove non axf material models
 	m_scene->m_opaque_models.erase(m_scene->m_opaque_models.begin() + 1, m_scene->m_opaque_models.end());
 	// TODO Render using ggx renderer
-
-
+	m_fallbackRenderer->render(m_scene.get(), dtime, false, false);
 	//Put models back in
 	m_scene->m_opaque_models.insert(m_scene->m_opaque_models.end(), tempmodels.begin(), tempmodels.end());
 
@@ -137,7 +136,7 @@ GLvoid Window::init()
 
 	// create renderer
 	m_renderer = std::unique_ptr<WardRenderer>(new WardRenderer(m_scene.get()));
-
+	m_fallbackRenderer = std::unique_ptr<GgxRenderer>(new GgxRenderer(m_scene.get()));
 	m_updateScene = true;
 
 	lockview = false;
@@ -162,6 +161,7 @@ void Window::onFrameBufferResize(int width, int height)
 	m_scene->m_camera.setViewport(width, height);
 	// recreate renderer
 	m_renderer.reset(new WardRenderer(m_scene.get()));
+	m_fallbackRenderer.reset(new GgxRenderer(m_scene.get()));
 }
 
 void Window::onKey(Key key, Action action, Modifier modifier)

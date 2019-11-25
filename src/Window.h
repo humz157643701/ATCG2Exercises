@@ -57,6 +57,8 @@ private:
 	std::unique_ptr<Scene> m_scene;
 	//! Current renderer
 	std::unique_ptr<IRenderer> m_renderer;
+	std::unique_ptr<IRenderer> m_fallbackRenderer;
+
 	//! scene simulation stops when this flag is set false
 	bool m_updateScene;
 
