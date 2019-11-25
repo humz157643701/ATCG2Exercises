@@ -90,7 +90,7 @@ GLvoid Window::render(GLdouble dtime)
 	GLint newvp[] = { GLint(getFrameBufferWidth() / 2), getFrameBufferHeight() };
 	m_scene->m_camera.setViewport(newvp[0], newvp[1]);
 
-	for (auto x : m_scene->m_opaque_models.front().meshes)
+	for (auto& x : m_scene->m_opaque_models.front().meshes)
 	{
 		x->setMaterial(m_scene->m_materials.front().get());
 	}
@@ -99,7 +99,7 @@ GLvoid Window::render(GLdouble dtime)
 	m_renderer->render(m_scene.get(), dtime);
 
 	//Set material of slate box to NN stuff
-	for (auto x : m_scene->m_opaque_models.front().meshes)
+	for (auto& x : m_scene->m_opaque_models.front().meshes)
 	{
 		x->setMaterial(m_scene->m_materials.back().get());
 	}

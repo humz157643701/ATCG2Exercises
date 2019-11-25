@@ -42,6 +42,8 @@ list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/SceneLoader.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/SceneLoader.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/WardRenderer.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/WardRenderer.cpp")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/GGXRenderer.h")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/GGXRenderer.cpp")
 
 
 #linked list version of the algorithms
