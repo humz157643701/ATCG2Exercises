@@ -8,7 +8,7 @@ MATERIAL 4 "assets/materials/TAC7/keep_cool.axf"
 MATERIAL 5 "assets/materials/TAC7/reflector_red.axf"
 MATERIAL 6 "assets/materials/TAC7/shell.axf"
 # ggx materials
-MATERIAL 7 "assets/materials/NN/slate-outputs-1.png" "assets/materials/NN/slate-outputs-3.png" "assets/materials/NN/slate-outputs-2.png" "assets/materials/NN/slate-outputs-0.png"
+MATERIAL 7 "assets/materials/NN/slate-outputs-3.png" "assets/materials/NN/slate-outputs-1.png" "assets/materials/NN/slate-outputs-2.png" "assets/materials/NN/slate-outputs-0.png"
 
 # camera
 CAMERA 1 0 0.0 0.0 2.0 0.0 0.0 0.0 0.0 1.0 0.0 90.0 0.1 100.0
