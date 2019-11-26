@@ -38,7 +38,7 @@ TM_EXPOSURE 0.8
 
 # environment map
 ENVIRONMENT_MAP "assets/envmaps/ermap2.hdr" true
-SKYBOX_RES 512
+SKYBOX_RES 1024
 
 # clear color
 CLEAR_COLOR 0.0 0.0 0.0 0.0
