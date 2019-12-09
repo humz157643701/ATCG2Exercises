@@ -5,8 +5,8 @@
 #define MAX_DIR_LIGHTS 2
 #define MAX_POINT_LIGHTS 8
 #define MAX_AMBIENT_LIGHTS 2
-#define SPECULAR_IBL_SAMPLES 32
-#define SPECULAR_IBL_LOD_BIAS_POW 0.85
+#define SPECULAR_IBL_SAMPLES 50
+#define SPECULAR_IBL_LOD_BIAS_POW 0.7
     
     
 //some structs for cleaner code ----------------------------------------------------------------------------------------
@@ -356,7 +356,7 @@ vec3 brdf_s(
  
 vec3 ambientShade(vec3 diffuse_albedo, float fresnel_f0, vec3 N, vec3 V, float roughness)
 {
-    float f0 = mix(float((1.0 - fresnel_f0) < 1e-6), 0.12, fresnel_f0);       
+    float f0 = mix(float((1.0 - fresnel_f0) < 1e-6), 0.04, fresnel_f0);       
     return (diffuse_albedo / PI) * (1.0 - fresnelSchlickRoughness(N, V, f0, roughness));
 }
 

@@ -5,8 +5,8 @@
 #define MAX_DIR_LIGHTS 2
 #define MAX_POINT_LIGHTS 8
 #define MAX_AMBIENT_LIGHTS 2
-#define SPECULAR_IBL_SAMPLES 32
-#define SPECULAR_IBL_LOD_BIAS_POW 0.85
+#define SPECULAR_IBL_SAMPLES 50
+#define SPECULAR_IBL_LOD_BIAS_POW 0.7
 #define DIELECTRIC_F0 0.04
     
     
@@ -142,7 +142,7 @@ float RadicalInverse_VdC(uint bits)
 vec2 Hammersley(uint i, uint N)
 {
     return vec2(float(i)/float(N), RadicalInverse_VdC(i));
-}  
+}
     
 //main function --------------------------------------------------------------------------------------------------------
 void main()
@@ -166,16 +166,24 @@ void main()
     vec2 tc = vertexData.uv * material.f_mscale;
 
     //read material properties
-    vec3 diffuse_albedo     = inverseGammaCorrect(texture(material.s_diffuse_albedo, tc).rgb);
-    vec3 specular_albedo    = inverseGammaCorrect(texture(material.s_specular_albedo, tc).rgb);
-    vec3 vtsp_bump_normal    = normalize(texture(material.s_normals, tc).rgb * 2.0 - 1.0);
+    vec3 diffuse_albedo     = texture(material.s_diffuse_albedo, tc).rgb;
+    vec3 specular_albedo    = texture(material.s_specular_albedo, tc).rgb;
+    vec3 tsp_bump_normal    = normalize(texture(material.s_normals, tc).rgb * 2.0 - 1.0);
     float roughness          = texture(material.s_roughness, tc).r ;
     float displacement      = texture(material.s_displacement, tc).r;
     float transparency      = texture(material.s_transparency, tc).r;
 
     // we have to perturb the tangent frame defined by the mesh geometry using the normal from the normal map
-    vec3 vsp_bump_normal = tbn * vtsp_bump_normal;
-
+    vec3 vsp_bump_normal = tbn * tsp_bump_normal;
+    // gram-schmidt orthogonalize the geometry tangent
+    vec3 vsp_bump_tangent = normalize(vsp_vertex_tangent - dot(vsp_vertex_tangent, vsp_bump_normal) * vsp_bump_normal);
+    // calculate bitangent
+    vec3 vsp_bump_bitangent = normalize(cross(vsp_bump_normal, vsp_bump_tangent));
+    vsp_bump_bitangent *= sign(dot(cross(vsp_bump_tangent, vsp_bump_bitangent), vsp_bump_normal));
+    // change of basis matrices for perturbed tangent space
+    mat3 bump_tbn = mat3(vsp_bump_tangent, vsp_bump_bitangent, vsp_bump_normal);
+    mat3 bump_itbn = transpose(bump_tbn);
+    
     //prepare vectors
     vec3 vsp_P = vertexData.viewspacePosition;    
     vec3 vsp_V = normalize(-vsp_P);
@@ -207,48 +215,45 @@ void main()
     // diffuse ibl
     outcol += ambientShade(diffuse_albedo, specular_albedo, vsp_bump_normal, vsp_V, roughness) * texture(irradiance, view_to_world * vsp_bump_normal).rgb;
     
-    // // specular IBL
-    // vec3 sibl = vec3(0.0);
+    // specular IBL
+    vec3 sibl = vec3(0.0);
 
-    // // idea: choose sample count based on roughness
-    // float r2 = roughness * roughness;
+    // idea: choose sample count based on roughness
+    float r2 = roughness * roughness;
 
-    // vec3 up = vec3(0.0, 1.0, 0.0);
-    // vec3 right = normalize(cross(up, vsp_bump_normal));
-    // up = normalize(cross(vsp_bump_normal, right));
-
-    // for(int i = 0; i < SPECULAR_IBL_SAMPLES; ++i)
-    // {
-    //     vec2 usamp = Hammersley(i, SPECULAR_IBL_SAMPLES);
+    for(int i = 0; i < SPECULAR_IBL_SAMPLES; ++i)
+    {
+        vec2 usamp = Hammersley(i, SPECULAR_IBL_SAMPLES);
         
-    //     float htheta = acos(sqrt((1.0 - usamp.x) / (usamp.y * (r2 - 1.0) + 1.0)));
-    //     float hphi = 2.0 * PI * usamp.x;       
+        float htheta = acos(sqrt((1.0 - usamp.x) / (usamp.x * (r2 - 1.0) + 1.0)));
+        float hphi = 2.0 * PI * usamp.y;       
 
-    //     vec3 h = vec3(
-    //         sin(htheta) * cos(hphi),            
-    //         sin(htheta) * sin(hphi),
-    //         cos(htheta),
-    //     );
+        vec3 h = vec3(
+            sin(htheta) * cos(hphi),           
+            sin(htheta) * sin(hphi),
+            cos(htheta)
+        );
 
-    //     h = tbn * h;        
+        h = bump_tbn * h;
 
-    //     vec3 vsp_L = 2.0 * dot(vsp_V, h) * h - vsp_V;
+        vec3 vsp_L = 2.0 * dot(vsp_V, h) * h - vsp_V;
 
-    //     float G = GeometrySmith(vsp_bump_normal, vsp_V, vsp_L, roughness);
-    //     vec3 F = fresnelSchlick(h, vsp_V, specular_albedo);
+        float G = GeometrySmith(vsp_bump_normal, vsp_V, vsp_L, roughness);
+        vec3 F = fresnelSchlick(h, vsp_V, specular_albedo);
 
-    //     float LdotH = max(dot(vsp_L, h), 0.0); 
-    //     float NdotH = max(dot(vsp_bump_normal, h), 0.0); 
-    //     float VdotN = max(dot(vsp_L, vsp_bump_normal), 0.0);
-    //     float LdotN = max(dot(vsp_L, vsp_bump_normal), 0.0);
+        float LdotH = max(dot(vsp_L, h), 0.0); 
+        float NdotH = max(dot(vsp_bump_normal, h), 0.0); 
+        float VdotN = max(dot(vsp_L, vsp_bump_normal), 0.0);
+        float LdotN = max(dot(vsp_L, vsp_bump_normal), 0.0);
 
-    //     vec3 b = (F * G * LdotH) / (VdotN * NdotH);
+        vec3 b = (F * G * LdotH) / max(VdotN * NdotH, 1e-6);
        
-    //     vec3 wsp_L = view_to_world * vsp_L;
-    //     vec3 Li = texture(skybox, wsp_L, pow(roughness, SPECULAR_IBL_LOD_BIAS_POW) * skybox_lodlevels).rgb;
-    //     sibl += b * Li * LdotN;             
-    // }
-    // outcol += sibl / float(SPECULAR_IBL_SAMPLES);
+        vec3 wsp_L = view_to_world * vsp_L;
+        vec3 Li = texture(skybox, wsp_L, pow(roughness, SPECULAR_IBL_LOD_BIAS_POW) * skybox_lodlevels).rgb;
+        sibl += Li * LdotN * b;             
+    }
+
+    outcol += sibl / float(SPECULAR_IBL_SAMPLES);
 
     //tone mapping
     outcol = TM_Exposure(outcol);

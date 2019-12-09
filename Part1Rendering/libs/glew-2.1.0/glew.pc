@@ -1,6 +1,6 @@
-prefix=C:/Program Files (x86)/ATCG2_Part1_Rendering
+prefix=C:/Program Files/ATCG2_Part1_Rendering
 exec_prefix=${prefix}
-libdir=C:/Program Files (x86)/ATCG2_Part1_Rendering/lib
+libdir=C:/Program Files/ATCG2_Part1_Rendering/lib
 includedir=${prefix}/include
 
 Name: glew
