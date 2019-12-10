@@ -29,4 +29,4 @@ target_link_libraries(ATCG2P2Geometry PUBLIC atcg2p2_external_dependencies)
 
 ##-------------------------------copy assets to output------------------------------------------------------------------
 
-file(COPY "assets" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
+#file(COPY "assets" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
