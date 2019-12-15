@@ -36,7 +36,7 @@ list(APPEND dep_includes "${CMAKE_CURRENT_SOURCE_DIR}/glfw-3.3/include")
 
 # eigen
 add_library(eigen INTERFACE)
-target_include_directories(eigen INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/eigen-3.3.7")
+target_include_directories(eigen INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/eigen")
 list(APPEND link_targets eigen)
 
 # libigl
