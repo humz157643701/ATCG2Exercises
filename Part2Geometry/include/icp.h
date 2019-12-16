@@ -18,7 +18,8 @@ public:
 		const Eigen::MatrixXd& query_normals,
 		double max_distance = std::numeric_limits<double>::max(),
 		double min_normal_cos_theta = -1.0,
-		double min_err = 1e-5);
+		double min_err = 1e-5,
+		size_t max_iterations = 200);
 	void setTargetPoints(const Eigen::MatrixXd& target_points);
 	static void applyRigidTransform(Eigen::MatrixXd& points, const Eigen::Matrix3d& optimal_rotation, const Eigen::Vector3d& optimal_translation);
 private:
