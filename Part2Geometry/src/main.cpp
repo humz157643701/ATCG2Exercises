@@ -47,7 +47,17 @@ int main(int argc, char *argv[])
 		viewer.launch();
 
 		ICPAligner icp(V1);
-		icp.align(rot, trans, V2, V1, N1, N2, 10.0, 0.75, 1e-2, 200);
+		// align transforms the query set (V2) and returns optimal translation and rotation
+		icp.align(rot, trans, V2, V1, N1, N2, 10.0, 0.75, 1e-2, 1e-4, 500);
+
+		// reset V2 and test if global transformation works
+		V2 = Eigen::MatrixXd(V1);
+		ICPAligner::applyRigidTransform(V2, Eigen::Matrix3d(Eigen::AngleAxisd((5.0 / 180.0) * EIGEN_PI, Eigen::Vector3d(1.0, 2.0, 0.0))), Eigen::Vector3d(2.0, 0.0, 0.0));
+		// apply rotation and translation calculated using icp
+		ICPAligner::applyRigidTransform(V2, rot, trans, true);
+		std::cout << "Optimal rotation:\n" << rot << "\n";
+		std::cout << "Optimal translation:\n" << trans << "\n";
+
 
 		V << V1, V2;
 
