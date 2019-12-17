@@ -134,8 +134,8 @@ void ICPAligner::optimalRigidTransform(const Eigen::MatrixXd & query_points, con
 		Eigen::RowVector3d T_mean = T.colwise().mean();
 		Eigen::Matrix3d H = (Q.rowwise() - Q_mean).transpose() * (T.rowwise() - T_mean);
 		Eigen::JacobiSVD<Eigen::Matrix3d> svd(H, Eigen::ComputeFullU | Eigen::ComputeFullV);
-		//Eigen::Matrix3d F = Eigen::MatrixXd::Identity(3, 3);
-		//F(2, 2) = (svd.matrixV() * svd.matrixU().transpose()).determinant();
+		Eigen::Matrix3d F = Eigen::MatrixXd::Identity(3, 3);
+		F(2, 2) = (svd.matrixV() * svd.matrixU().transpose()).determinant();
 		Eigen::Matrix3d R = svd.matrixV() /* F*/ * svd.matrixU().transpose();
 		Eigen::RowVector3d t = T_mean - (Q_mean * R.transpose());
 		optimal_rotation = R;
