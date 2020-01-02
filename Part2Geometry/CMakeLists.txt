@@ -9,10 +9,12 @@ list(APPEND INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/src")
 list(APPEND INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/icp.h")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/symmetry.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/Octree.h")
 
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/icp.cpp")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/symmetry.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Octree.cpp")
 
 ##--------------------------------build source groups for visual studio-------------------------------------------------
