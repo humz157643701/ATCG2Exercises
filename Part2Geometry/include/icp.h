@@ -5,6 +5,15 @@
 #include <Eigen/Dense>
 #include <limits>
 
+struct ICPParams
+{
+	double max_distance = std::numeric_limits<double>::max();
+	double min_normal_cos_theta = -1.0;
+	double min_err = 1e-5;
+	double min_err_change = 1e-8;
+	std::size_t max_iterations = 200;
+};
+
 class ICPAligner
 {
 public:
@@ -21,6 +30,13 @@ public:
 		double min_err = 1e-5,
 		double min_err_change = 1e-8,
 		size_t max_iterations = 200);
+	double align(Eigen::Matrix3d& optimal_rotation,
+		Eigen::Vector3d& optimal_translation,
+		Eigen::MatrixXd& query_points,
+		const Eigen::MatrixXd & target_points,
+		const Eigen::MatrixXd& target_normals,
+		const Eigen::MatrixXd& query_normals,
+		const ICPParams& params);		
 	void setTargetPoints(const Eigen::MatrixXd& target_points);
 	static void applyRigidTransform(Eigen::MatrixXd& points, const Eigen::Matrix3d& optimal_rotation, const Eigen::Vector3d& optimal_translation, bool reorthonormalize_rotation = false);
 private:

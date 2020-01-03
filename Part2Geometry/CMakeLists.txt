@@ -10,7 +10,7 @@ list(APPEND INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/icp.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/symmetry.h")
-list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/meshfilters.h")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/meshsamplers.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/Octree.h")
 
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")

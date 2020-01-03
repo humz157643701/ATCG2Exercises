@@ -15,19 +15,24 @@ struct SymmetryResult
 };
 
 template <typename MeshSampler>
-class SymmetryDetector : private MeshSampler
+class SymmetryDetector
 {
 public:
-	SymmetryResult findMainSymmetryPlane(const Eigen::MatrixXd& vertices, const Eigen::MatrixXd& normals, const Eigen::MatrixXi& faces, std::size_t max_points_for_symmetry_calculation = 0)
+	SymmetryDetector(const ICPParams& icpparams = {}, const MeshSampler& meshsampler = {}) :
+		m_meshsampler(meshsampler),
+		m_icp_params(icpparams)
+	{}
+
+	SymmetryResult findMainSymmetryPlane(const Eigen::MatrixXd& vertices, const Eigen::MatrixXd& normals, const Eigen::MatrixXi& faces, const Eigen::Vector3d& initial_plane_normal)
 	{
-		// --- filter point cloud ---
+		// --- sample points on mesh ---
 		Eigen::MatrixXd Vt;
 		Eigen::MatrixXd Nt;
-		sampleMeshPoints(vertices, normals, faces, max_points_for_symmetry_calculation, Vt, Nt);
+		m_meshsampler.sampleMeshPoints(vertices, normals, faces, Vt, Nt);
 
 		// --- find symmetry plane ---
-		Eigen::Vector3d center_of_mass = Vt.colwise().mean().transpose();
-		Eigen::Vector3d plane_normal{ 1.0, 0.0, 0.0 };
+		Eigen::Vector3d center_of_mass{ Vt.colwise().mean().transpose() };
+		Eigen::Vector3d plane_normal{ initial_plane_normal };
 
 		// icp instance
 		ICPAligner icp(Vt);
@@ -36,15 +41,14 @@ public:
 		Eigen::MatrixXd Nq(Nt);
 
 		// construct initial plane and reflection matrix
-		double origin_plane_distance = 0;
 		Eigen::Matrix3d reflection_matrix;
 		reflection_matrix << 1, 0, 0, 0, 1, 0, 0, 0, 1;
 		reflection_matrix = reflection_matrix - 2 * (plane_normal * plane_normal.transpose());
-		double origin_plane_distance = (-centerofmass).dot(plane_normal);
+		double origin_plane_distance = (-center_of_mass).dot(plane_normal);
 		
 		// reflect query set across initial plane		
 		Vq *= reflection_matrix.transpose();
-		Vq += 2.0 * origin_plane_distance * plane_normal;
+		Vq.rowwise() += 2.0 * origin_plane_distance * plane_normal.transpose();
 
 		Nq *= reflection_matrix.transpose();
 		Nq.rowwise().normalize();
@@ -52,7 +56,8 @@ public:
 		// align target and reflected query set
 		Eigen::Matrix3d optimal_rotation;
 		Eigen::Vector3d optimal_translation;
-		icp.align(optimal_rotation, optimal_translation, Vq, Vt, Nt, Nq, 50.0, 0.2, 1e-2, 1e-4, 100);
+		//icp.align(optimal_rotation, optimal_translation, Vq, Vt, Nt, Nq, 50.0, 0.2, 1e-2, 1e-4, 100);
+		icp.align(optimal_rotation, optimal_translation, Vq, Vt, Nt, Nq, m_icp_params);
 
 		auto reflected_rot = reflection_matrix * optimal_rotation.transpose();
 		Eigen::EigenSolver<Eigen::MatrixXd> es(reflected_rot);
@@ -74,6 +79,10 @@ public:
 		// return result
 		return { newplanepoint, newnormal, optimal_translation, optimal_rotation };
 	}
+
+private:
+	MeshSampler m_meshsampler;
+	ICPParams m_icp_params;
 };
 
 #endif

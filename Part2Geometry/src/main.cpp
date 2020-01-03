@@ -1,8 +1,9 @@
 #include <iostream>
 #include<igl/opengl/glfw/Viewer.h>
 #include<igl/readOBJ.h>
-#include <icp.h>
+#include <symmetry.h>
 #include <Eigen/Geometry>
+#include <meshsamplers.h>
 
 struct ResultData
 {
@@ -41,105 +42,105 @@ Plane createPlane(Eigen::Vector3d &normal)
 	return { planeV1, planeF1, planeC };
 }
 
-ResultData calcSymmetryPlane(Eigen::MatrixXd& V1, Eigen::MatrixXi &F1, Eigen::Vector3d initialPlaneNormal)
-{
-	Eigen::MatrixXd V2(V1);
-	Eigen::MatrixXi F2(F1);
-	//ICPAligner::applyRigidTransform(V2, Eigen::Matrix3d(Eigen::AngleAxisd((5.0 / 180.0) * EIGEN_PI, Eigen::Vector3d(1.0, 2.0, 0.0))), Eigen::Vector3d(2.0, 0.0, 0.0));
-
-	Eigen::MatrixXd N1;
-	Eigen::MatrixXd N2;
-
-	igl::per_vertex_normals(V1, F1, N1);
-	igl::per_vertex_normals(V2, F2, N2);
-
-	
-	Eigen::Matrix3d rot;
-	Eigen::Vector3d trans;
-
-	
-	//V << V1, V2;
-	//F << F1, (F2.array() + V1.rows());
-	//C << C1, C2;
-
-
-
-	// Plot the mesh
-	//igl::opengl::glfw::Viewer viewer;
-	//viewer.data().set_mesh(V, F);
-	//viewer.data().set_colors(C);
-	//viewer.launch();
-
-	Eigen::Vector3d centerofmass{ 0,0,0 };
-	Eigen::Vector3d planenormal(initialPlaneNormal);
-	double d_originplanedistance = 0;
-	Eigen::Matrix3d reflectionmatrix;
-	reflectionmatrix << 1, 0, 0, 0, 1, 0, 0, 0, 1;
-	std::cout << reflectionmatrix << "\n";
-	reflectionmatrix = reflectionmatrix - 2 * (planenormal * planenormal.transpose());
-	std::cout << reflectionmatrix << "\n";
-
-	for (size_t x = 0; x < V1.rows(); ++x)
-	{
-		centerofmass(0) += V1(x, 0);
-		centerofmass(1) += V1(x, 1);
-		centerofmass(2) += V1(x, 2);
-	}
-	centerofmass /= V1.rows();
-	d_originplanedistance = (Eigen::Vector3d(0, 0, 0) - centerofmass).dot(planenormal);
-	std::cout << centerofmass << "\n";
-	std::cout << d_originplanedistance;
-
-	for (size_t x = 0; x < V2.rows(); ++x)
-	{
-		Eigen::Vector3d refl = reflectionmatrix * V2(x, Eigen::all).transpose() + 2 * d_originplanedistance * planenormal;
-
-
-		V2(x, Eigen::all) = refl;
-	}
-
-	for (size_t x = 0; x < N2.rows(); ++x)
-	{
-		Eigen::Vector3d refl = reflectionmatrix * N2(x, Eigen::all).transpose() + 2 * d_originplanedistance * planenormal;
-
-
-		N2(x, Eigen::all) = refl;
-	}
-
-	ICPAligner icp(V1);
-	// align transforms the query set (V2) and returns optimal translation and rotation
-	icp.align(rot, trans, V2, V1, N1, N2, 50.0, 0.2, 1e-2, 1e-4, 35);
-
-	auto reflectedrot = reflectionmatrix * rot.transpose();
-	Eigen::EigenSolver<Eigen::MatrixXd> es(reflectedrot);
-	int smallesteigenidx = 0;
-	double smallesteigendiff = 1;
-	for (size_t x = 0; x < es.eigenvalues().rows(); ++x)
-	{
-		auto diff = es.eigenvalues()(x, 0).real() + 1;
-		if (diff < smallesteigendiff)
-		{
-			smallesteigenidx = x;
-			smallesteigendiff = diff;
-		}
-	}
-	std::cout << es.eigenvalues()(smallesteigenidx).real() << " | " << smallesteigendiff << "\n";
-	std::cout << es.eigenvectors().col(smallesteigenidx)(Eigen::all, 0).real() << "\n";
-
-	// New symm plane point
-	Eigen::Vector3d newplanepoint = 0.5 * (rot * (2 * d_originplanedistance * planenormal) + trans);
-	Eigen::Vector3d newnormal = es.eigenvectors().col(smallesteigenidx)(Eigen::all, 0).real();
-	std::cout << newplanepoint << "\n";
-	// reset V2 and test if global transformation works
-	// V2 = Eigen::MatrixXd(V1);
-	//ICPAligner::applyRigidTransform(V2, Eigen::Matrix3d(Eigen::AngleAxisd((5.0 / 180.0) * EIGEN_PI, Eigen::Vector3d(1.0, 2.0, 0.0))), Eigen::Vector3d(2.0, 0.0, 0.0));
-	// apply rotation and translation calculated using icp
-	//ICPAligner::applyRigidTransform(V2, reflectedrot, trans, true);
-	std::cout << "Optimal rotation:\n" << rot << "\n";
-	std::cout << "Optimal translation:\n" << trans << "\n";
-
-	return { newplanepoint, newnormal, trans, rot };
-}
+//ResultData calcSymmetryPlane(Eigen::MatrixXd& V1, Eigen::MatrixXi &F1, Eigen::Vector3d initialPlaneNormal)
+//{
+//	Eigen::MatrixXd V2(V1);
+//	Eigen::MatrixXi F2(F1);
+//	//ICPAligner::applyRigidTransform(V2, Eigen::Matrix3d(Eigen::AngleAxisd((5.0 / 180.0) * EIGEN_PI, Eigen::Vector3d(1.0, 2.0, 0.0))), Eigen::Vector3d(2.0, 0.0, 0.0));
+//
+//	Eigen::MatrixXd N1;
+//	Eigen::MatrixXd N2;
+//
+//	igl::per_vertex_normals(V1, F1, N1);
+//	igl::per_vertex_normals(V2, F2, N2);
+//
+//	
+//	Eigen::Matrix3d rot;
+//	Eigen::Vector3d trans;
+//
+//	
+//	//V << V1, V2;
+//	//F << F1, (F2.array() + V1.rows());
+//	//C << C1, C2;
+//
+//
+//
+//	// Plot the mesh
+//	//igl::opengl::glfw::Viewer viewer;
+//	//viewer.data().set_mesh(V, F);
+//	//viewer.data().set_colors(C);
+//	//viewer.launch();
+//
+//	Eigen::Vector3d centerofmass{ 0,0,0 };
+//	Eigen::Vector3d planenormal(initialPlaneNormal);
+//	double d_originplanedistance = 0;
+//	Eigen::Matrix3d reflectionmatrix;
+//	reflectionmatrix << 1, 0, 0, 0, 1, 0, 0, 0, 1;
+//	std::cout << reflectionmatrix << "\n";
+//	reflectionmatrix = reflectionmatrix - 2 * (planenormal * planenormal.transpose());
+//	std::cout << reflectionmatrix << "\n";
+//
+//	for (size_t x = 0; x < V1.rows(); ++x)
+//	{
+//		centerofmass(0) += V1(x, 0);
+//		centerofmass(1) += V1(x, 1);
+//		centerofmass(2) += V1(x, 2);
+//	}
+//	centerofmass /= V1.rows();
+//	d_originplanedistance = (Eigen::Vector3d(0, 0, 0) - centerofmass).dot(planenormal);
+//	std::cout << centerofmass << "\n";
+//	std::cout << d_originplanedistance;
+//
+//	for (size_t x = 0; x < V2.rows(); ++x)
+//	{
+//		Eigen::Vector3d refl = reflectionmatrix * V2(x, Eigen::all).transpose() + 2 * d_originplanedistance * planenormal;
+//
+//
+//		V2(x, Eigen::all) = refl;
+//	}
+//
+//	for (size_t x = 0; x < N2.rows(); ++x)
+//	{
+//		Eigen::Vector3d refl = reflectionmatrix * N2(x, Eigen::all).transpose() + 2 * d_originplanedistance * planenormal;
+//
+//
+//		N2(x, Eigen::all) = refl;
+//	}
+//
+//	ICPAligner icp(V1);
+//	// align transforms the query set (V2) and returns optimal translation and rotation
+//	icp.align(rot, trans, V2, V1, N1, N2, 50.0, 0.2, 1e-2, 1e-4, 35);
+//
+//	auto reflectedrot = reflectionmatrix * rot.transpose();
+//	Eigen::EigenSolver<Eigen::MatrixXd> es(reflectedrot);
+//	int smallesteigenidx = 0;
+//	double smallesteigendiff = 1;
+//	for (size_t x = 0; x < es.eigenvalues().rows(); ++x)
+//	{
+//		auto diff = es.eigenvalues()(x, 0).real() + 1;
+//		if (diff < smallesteigendiff)
+//		{
+//			smallesteigenidx = x;
+//			smallesteigendiff = diff;
+//		}
+//	}
+//	std::cout << es.eigenvalues()(smallesteigenidx).real() << " | " << smallesteigendiff << "\n";
+//	std::cout << es.eigenvectors().col(smallesteigenidx)(Eigen::all, 0).real() << "\n";
+//
+//	// New symm plane point
+//	Eigen::Vector3d newplanepoint = 0.5 * (rot * (2 * d_originplanedistance * planenormal) + trans);
+//	Eigen::Vector3d newnormal = es.eigenvectors().col(smallesteigenidx)(Eigen::all, 0).real();
+//	std::cout << newplanepoint << "\n";
+//	// reset V2 and test if global transformation works
+//	// V2 = Eigen::MatrixXd(V1);
+//	//ICPAligner::applyRigidTransform(V2, Eigen::Matrix3d(Eigen::AngleAxisd((5.0 / 180.0) * EIGEN_PI, Eigen::Vector3d(1.0, 2.0, 0.0))), Eigen::Vector3d(2.0, 0.0, 0.0));
+//	// apply rotation and translation calculated using icp
+//	//ICPAligner::applyRigidTransform(V2, reflectedrot, trans, true);
+//	std::cout << "Optimal rotation:\n" << rot << "\n";
+//	std::cout << "Optimal translation:\n" << trans << "\n";
+//
+//	return { newplanepoint, newnormal, trans, rot };
+//}
 
 
 int main(int argc, char *argv[])
@@ -175,121 +176,124 @@ int main(int argc, char *argv[])
 
 		Eigen::MatrixXd V1;
 		Eigen::MatrixXi F1;
+		Eigen::MatrixXd N1;
 		std::cout << "Loading meshes...\n";
 		igl::readOBJ("assets/models/RD-01/16021_OnyxCeph3_Export_OK-A.obj", V1, F1);
+		igl::per_vertex_normals(V1, F1, N1);
 		Eigen::Vector3d origvec = { 1,1,0 };
-		auto res = calcSymmetryPlane(V1, F1, origvec.normalized());
+		SymmetryDetector<MeshSamplers::PassthroughSampler> symmd(ICPParams{ 50.0, 0.2, 1e-2, 1e-4, 50 }, MeshSamplers::PassthroughSampler{});
+		auto res = symmd.findMainSymmetryPlane(V1, N1, F1, origvec.normalized());
 
-		Eigen::MatrixXd V2(V1);
-		Eigen::MatrixXi F2(F1);
-		//ICPAligner::applyRigidTransform(V2, res.rot, res.trans);
-		double d_originplanedistance = 0;
-		Eigen::Matrix3d reflectionmatrix;
-		reflectionmatrix << 1, 0, 0, 0, 1, 0, 0, 0, 1;
-		reflectionmatrix = reflectionmatrix - 2 * (res.normal * res.normal.transpose());
-		d_originplanedistance = (Eigen::Vector3d(0, 0, 0) - res.center).dot(res.center);
-		
-		for (size_t x = 0; x < V2.rows(); ++x)
-		{
-			Eigen::Vector3d refl = reflectionmatrix * V2(x, Eigen::all).transpose() + 2 * d_originplanedistance * res.normal;
-
-
-			V2(x, Eigen::all) = refl;
-		}
-
-		
-		Eigen::MatrixXd C1(V1.rows(), 3);
-		Eigen::MatrixXd C2(V2.rows(), 3);
-		C1 << Eigen::RowVector3d(1.0, 1.0, 1.0).replicate(V1.rows(), 1);
-		C2 << Eigen::RowVector3d(1.0, 0.0, 0.0).replicate(V2.rows(), 1);
-
-		auto planeRes = createPlane(res.normal);
-
-		Eigen::MatrixXd V(V1.rows() + V2.rows() + planeRes.Vs.rows(), V1.cols());
-		Eigen::MatrixXi F(F1.rows() + F2.rows() + planeRes.Fs.rows(), F1.cols());
-		Eigen::MatrixXd C(C1.rows() + C2.rows() + planeRes.Cs.rows(), C1.cols());
-
-		V << V1, V2, planeRes.Vs;
-		F << F1, (F2.array() + V1.rows()), (planeRes.Fs.array() + V1.rows() + V2.rows());
-		C << C1, C2, planeRes.Cs;
+		//Eigen::MatrixXd V2(V1);
+		//Eigen::MatrixXi F2(F1);
+		////ICPAligner::applyRigidTransform(V2, res.rot, res.trans);
+		//double d_originplanedistance = 0;
+		//Eigen::Matrix3d reflectionmatrix;
+		//reflectionmatrix << 1, 0, 0, 0, 1, 0, 0, 0, 1;
+		//reflectionmatrix = reflectionmatrix - 2 * (res.normal * res.normal.transpose());
+		//d_originplanedistance = (Eigen::Vector3d(0, 0, 0) - res.center).dot(res.center);
+		//
+		//for (size_t x = 0; x < V2.rows(); ++x)
+		//{
+		//	Eigen::Vector3d refl = reflectionmatrix * V2(x, Eigen::all).transpose() + 2 * d_originplanedistance * res.normal;
 
 
-		auto res2 = calcSymmetryPlane(V1, F1, { 0,1,0 });
+		//	V2(x, Eigen::all) = refl;
+		//}
 
-		Eigen::MatrixXd V3(V1);
-		Eigen::MatrixXi F3(F1);
-		//ICPAligner::applyRigidTransform(V3, res2.rot, res2.trans);
-		d_originplanedistance = 0;
-		reflectionmatrix << 1, 0, 0, 0, 1, 0, 0, 0, 1;
-		reflectionmatrix = reflectionmatrix - 2 * (res2.normal * res2.normal.transpose());
-		d_originplanedistance = (Eigen::Vector3d(0, 0, 0) - res2.center).dot(res2.center);
+		//
+		//Eigen::MatrixXd C1(V1.rows(), 3);
+		//Eigen::MatrixXd C2(V2.rows(), 3);
+		//C1 << Eigen::RowVector3d(1.0, 1.0, 1.0).replicate(V1.rows(), 1);
+		//C2 << Eigen::RowVector3d(1.0, 0.0, 0.0).replicate(V2.rows(), 1);
 
-		for (size_t x = 0; x < V3.rows(); ++x)
-		{
-			Eigen::Vector3d refl = reflectionmatrix * V3(x, Eigen::all).transpose() + 2 * d_originplanedistance * res2.normal;
+		//auto planeRes = createPlane(res.normal);
 
+		//Eigen::MatrixXd V(V1.rows() + V2.rows() + planeRes.Vs.rows(), V1.cols());
+		//Eigen::MatrixXi F(F1.rows() + F2.rows() + planeRes.Fs.rows(), F1.cols());
+		//Eigen::MatrixXd C(C1.rows() + C2.rows() + planeRes.Cs.rows(), C1.cols());
 
-			V3(x, Eigen::all) = refl;
-		}
-		
-		Eigen::MatrixXd C3(V3.rows(), 3);
-		C3 << Eigen::RowVector3d(0.0, 1.0, 0.0).replicate(V3.rows(), 1);
-
-		auto planeRes2 = createPlane(res2.normal);
-
-		auto res3 = calcSymmetryPlane(V1, F1, { 0,0,1 });
-
-		Eigen::MatrixXd V4(V1);
-		Eigen::MatrixXi F4(F1);
-		//ICPAligner::applyRigidTransform(V4, res3.rot, res3.trans);
-		d_originplanedistance = 0;
-		reflectionmatrix << 1, 0, 0, 0, 1, 0, 0, 0, 1;
-		reflectionmatrix = reflectionmatrix - 2 * (res3.normal * res3.normal.transpose());
-		d_originplanedistance = (Eigen::Vector3d(0, 0, 0) - res3.center).dot(res3.center);
-
-		for (size_t x = 0; x < V4.rows(); ++x)
-		{
-			Eigen::Vector3d refl = reflectionmatrix * V4(x, Eigen::all).transpose() + 2 * d_originplanedistance * res3.normal;
+		//V << V1, V2, planeRes.Vs;
+		//F << F1, (F2.array() + V1.rows()), (planeRes.Fs.array() + V1.rows() + V2.rows());
+		//C << C1, C2, planeRes.Cs;
 
 
-			V4(x, Eigen::all) = refl;
-		}
-		Eigen::MatrixXd C4(V4.rows(), 3);
-		C4 << Eigen::RowVector3d(0.0, 0.0, 1.0).replicate(V4.rows(), 1);
+		//auto res2 = calcSymmetryPlane(V1, F1, { 0,1,0 });
 
-		auto planeRes3 = createPlane(res2.normal);
+		//Eigen::MatrixXd V3(V1);
+		//Eigen::MatrixXi F3(F1);
+		////ICPAligner::applyRigidTransform(V3, res2.rot, res2.trans);
+		//d_originplanedistance = 0;
+		//reflectionmatrix << 1, 0, 0, 0, 1, 0, 0, 0, 1;
+		//reflectionmatrix = reflectionmatrix - 2 * (res2.normal * res2.normal.transpose());
+		//d_originplanedistance = (Eigen::Vector3d(0, 0, 0) - res2.center).dot(res2.center);
+
+		//for (size_t x = 0; x < V3.rows(); ++x)
+		//{
+		//	Eigen::Vector3d refl = reflectionmatrix * V3(x, Eigen::all).transpose() + 2 * d_originplanedistance * res2.normal;
 
 
-		// Plot the mesh
-		igl::opengl::glfw::Viewer viewer2;
+		//	V3(x, Eigen::all) = refl;
+		//}
+		//
+		//Eigen::MatrixXd C3(V3.rows(), 3);
+		//C3 << Eigen::RowVector3d(0.0, 1.0, 0.0).replicate(V3.rows(), 1);
+
+		//auto planeRes2 = createPlane(res2.normal);
+
+		//auto res3 = calcSymmetryPlane(V1, F1, { 0,0,1 });
+
+		//Eigen::MatrixXd V4(V1);
+		//Eigen::MatrixXi F4(F1);
+		////ICPAligner::applyRigidTransform(V4, res3.rot, res3.trans);
+		//d_originplanedistance = 0;
+		//reflectionmatrix << 1, 0, 0, 0, 1, 0, 0, 0, 1;
+		//reflectionmatrix = reflectionmatrix - 2 * (res3.normal * res3.normal.transpose());
+		//d_originplanedistance = (Eigen::Vector3d(0, 0, 0) - res3.center).dot(res3.center);
+
+		//for (size_t x = 0; x < V4.rows(); ++x)
+		//{
+		//	Eigen::Vector3d refl = reflectionmatrix * V4(x, Eigen::all).transpose() + 2 * d_originplanedistance * res3.normal;
+
+
+		//	V4(x, Eigen::all) = refl;
+		//}
+		//Eigen::MatrixXd C4(V4.rows(), 3);
+		//C4 << Eigen::RowVector3d(0.0, 0.0, 1.0).replicate(V4.rows(), 1);
+
+		//auto planeRes3 = createPlane(res2.normal);
+
+
+		//// Plot the mesh
+		//igl::opengl::glfw::Viewer viewer2;
+		////auto m3 = viewer2.append_mesh();
+		//viewer2.data().set_mesh(V, F);
+		//viewer2.data().set_colors(C);
+		//viewer2.launch();
+		//viewer2 = igl::opengl::glfw::Viewer();
+		//auto m1 = viewer2.append_mesh();
+		//auto m2 = viewer2.append_mesh();
 		//auto m3 = viewer2.append_mesh();
-		viewer2.data().set_mesh(V, F);
-		viewer2.data().set_colors(C);
-		viewer2.launch();
-		viewer2 = igl::opengl::glfw::Viewer();
-		auto m1 = viewer2.append_mesh();
-		auto m2 = viewer2.append_mesh();
-		auto m3 = viewer2.append_mesh();
 
-		viewer2.data(m1).set_mesh(V3, F3);
-		viewer2.data(m1).set_colors(C3);
-		viewer2.data(m2).set_mesh(planeRes2.Vs, planeRes2.Fs);
-		viewer2.data(m2).set_colors(planeRes2.Cs);
-		viewer2.data(m3).set_mesh(V1, F1);
-		viewer2.data(m3).set_colors(C1);
-		viewer2.launch();
-		viewer2 = igl::opengl::glfw::Viewer();
-		m1 = viewer2.append_mesh();
-		m2 = viewer2.append_mesh();
-		m3 = viewer2.append_mesh();
+		//viewer2.data(m1).set_mesh(V3, F3);
+		//viewer2.data(m1).set_colors(C3);
+		//viewer2.data(m2).set_mesh(planeRes2.Vs, planeRes2.Fs);
+		//viewer2.data(m2).set_colors(planeRes2.Cs);
+		//viewer2.data(m3).set_mesh(V1, F1);
+		//viewer2.data(m3).set_colors(C1);
+		//viewer2.launch();
+		//viewer2 = igl::opengl::glfw::Viewer();
+		//m1 = viewer2.append_mesh();
+		//m2 = viewer2.append_mesh();
+		//m3 = viewer2.append_mesh();
 
-		viewer2.data(m1).set_mesh(V4, F4);
-		viewer2.data(m1).set_colors(C4);
-		viewer2.data(m2).set_mesh(planeRes3.Vs, planeRes3.Fs);
-		viewer2.data(m2).set_colors(planeRes3.Cs);
-		viewer2.data(m3).set_mesh(V1, F1);
-		viewer2.data(m3).set_colors(C1);
-		viewer2.launch();
+		//viewer2.data(m1).set_mesh(V4, F4);
+		//viewer2.data(m1).set_colors(C4);
+		//viewer2.data(m2).set_mesh(planeRes3.Vs, planeRes3.Fs);
+		//viewer2.data(m2).set_colors(planeRes3.Cs);
+		//viewer2.data(m3).set_mesh(V1, F1);
+		//viewer2.data(m3).set_colors(C1);
+		//viewer2.launch();
 
 	}
 	catch (const std::exception& ex)

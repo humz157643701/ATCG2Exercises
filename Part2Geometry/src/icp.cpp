@@ -76,6 +76,11 @@ double ICPAligner::align(Eigen::Matrix3d & optimal_rotation,
 	}
 }
 
+double ICPAligner::align(Eigen::Matrix3d & optimal_rotation, Eigen::Vector3d & optimal_translation, Eigen::MatrixXd & query_points, const Eigen::MatrixXd & target_points, const Eigen::MatrixXd & target_normals, const Eigen::MatrixXd & query_normals, const ICPParams & params)
+{
+	return align(optimal_rotation, optimal_translation, query_points, target_points, target_normals, query_normals, params.max_distance, params.min_normal_cos_theta, params.min_err, params.min_err_change, params.max_iterations);
+}
+
 void ICPAligner::setTargetPoints(const Eigen::MatrixXd & target_points)
 {
 	m_octree_data.clear();
