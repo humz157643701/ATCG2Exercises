@@ -1,12 +1,8 @@
-#ifndef _MESH_SAMPLERS_H_
-#define _MESH_SAMPLERS_H_
-#include <Eigen/Dense>
-#include <integral_invariant_signatures.h>
+#ifndef _INTEGRAL_INVARIANT_SIGNATURES_H_
+#define _INTEGRAL_INVARIANT_SIGNATURES_H_
 namespace MeshSamplers
 {
-	// default sampler
-
-	struct PassthroughSampler
+	struct IntegralInvariantSignaturesSampler
 	{
 		static void sampleMeshPoints(
 			const Eigen::MatrixXd& vertices,
@@ -20,15 +16,5 @@ namespace MeshSamplers
 			sampled_normals = normals;
 		}
 	};
-
-
-	// advanced samplers
-
-	//#include <mesh_saliency.h>
-	
-	//#include <salient_features_for_partial_shape_matching_and_similarity.h>
-
-
 }
-
 #endif
