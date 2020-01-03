@@ -12,7 +12,20 @@ struct SymmetryResult
 	Eigen::Vector3d normal;
 	Eigen::Vector3d trans;
 	Eigen::Matrix3d rot;
+	Eigen::MatrixXd refVt;
+	Eigen::MatrixXd refVq;
 };
+
+void reflectAlongPlane(const SymmetryResult &sres, Eigen::MatrixXd& vertices) {
+	Eigen::Matrix3d reflection_matrix;
+	reflection_matrix << 1, 0, 0, 0, 1, 0, 0, 0, 1;
+	reflection_matrix = reflection_matrix - 2 * (sres.normal * sres.normal.transpose());
+	double origin_plane_distance = (sres.center).dot(sres.normal);
+
+	// reflect query set across initial plane		
+	vertices *= reflection_matrix.transpose();
+	vertices.rowwise() += 2.0 * origin_plane_distance * sres.normal.transpose();
+}
 
 template <typename MeshSampler>
 class SymmetryDetector
@@ -44,8 +57,8 @@ public:
 		Eigen::Matrix3d reflection_matrix;
 		reflection_matrix << 1, 0, 0, 0, 1, 0, 0, 0, 1;
 		reflection_matrix = reflection_matrix - 2 * (plane_normal * plane_normal.transpose());
-		double origin_plane_distance = (-center_of_mass).dot(plane_normal);
-		
+		double origin_plane_distance = (center_of_mass).dot(plane_normal);
+		std::cout << center_of_mass;
 		// reflect query set across initial plane		
 		Vq *= reflection_matrix.transpose();
 		Vq.rowwise() += 2.0 * origin_plane_distance * plane_normal.transpose();
@@ -75,9 +88,17 @@ public:
 
 		Eigen::Vector3d newplanepoint = 0.5 * (optimal_rotation * (2 * origin_plane_distance * plane_normal) + optimal_translation);
 		Eigen::Vector3d newnormal = es.eigenvectors().col(smallesteigenidx)(Eigen::all, 0).real();
+		reflection_matrix << 1, 0, 0, 0, 1, 0, 0, 0, 1;
+		reflection_matrix = reflection_matrix - 2 * (newnormal * newnormal.transpose());
+		origin_plane_distance = (-newplanepoint).dot(newnormal);
+
+		Eigen::MatrixXd Vq_new(Vt);
+		// reflect query set across initial plane		
+		Vq_new *= reflection_matrix.transpose();
+		Vq_new.rowwise() += 2.0 * origin_plane_distance * newnormal.transpose();
 
 		// return result
-		return { newplanepoint, newnormal, optimal_translation, optimal_rotation };
+		return { newplanepoint, newnormal, optimal_translation, optimal_rotation,  Vt, Vq_new};
 	}
 
 private:
