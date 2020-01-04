@@ -6,6 +6,7 @@
 #include <igl/massmatrix.h>
 #include <igl/invert_diag.h>
 #include <Octree.h>
+#include <cmath>
 
 namespace MeshSamplers
 {
@@ -56,11 +57,40 @@ namespace MeshSamplers
 			Eigen::VectorXd G_coarse(vertices.rows());
 			for (std::size_t scale = m_start_scale; scale <= m_end_scale; ++scale)
 			{
-				// calculate G_fine; gaussian weighted average of mean curvature with sdev scale * epsilon
-
-				// calculate G_coarse; gaussian weighted average of mean curvature with sdev 2 * scale * epsilon
-
-				// calculate saliency for this scale (G_fine - G_coarse)
+				double cur_sigma = static_cast<double>(scale) * epsilon;
+				double cur_sigma2 = 2.0 * cur_sigma;
+				for (Eigen::DenseIndex v = 0; v < vertices.rows(); ++v)
+				{
+					// search for neighbours using octree
+					auto res_fine = octr.query_radius(Vec3(vertices(v, 0), vertices(v, 1), vertices(v, 2)), 2.0 * cur_sigma);
+					auto res_coarse = octr.query_radius(Vec3(vertices(v, 0), vertices(v, 1), vertices(v, 2)), 2.0 * cur_sigma2);
+					// calculate G_fine; gaussian weighted average of mean curvature with sdev scale * epsilon
+					double wfine = 0.0;
+					double gfine = 0.0;
+					for (size_t i = 0; i < res_fine.idx_dist_pair.size(); ++i)
+					{
+						Eigen::RowVector3d distvec = vertices(res_fine.idx_dist_pair[i].first, Eigen::all) - vertices(v, Eigen::all);
+						double d2 = distvec.dot(distvec);
+						double w = std::exp(-d2 / (2.0 * cur_sigma * cur_sigma));
+						gfine += mean_curvatures(res_fine.idx_dist_pair[i].first) * w;
+						wfine += w;
+					}
+					G_fine(v) = gfine / wfine;
+					// calculate G_coarse; gaussian weighted average of mean curvature with sdev 2 * scale * epsilon
+					double wcoarse = 0.0;
+					double gcoarse = 0.0;
+					for (size_t i = 0; i < res_coarse.idx_dist_pair.size(); ++i)
+					{
+						Eigen::RowVector3d distvec = vertices(res_coarse.idx_dist_pair[i].first, Eigen::all) - vertices(v, Eigen::all);
+						double d2 = distvec.dot(distvec);
+						double w = std::exp(-d2 / (2.0 * cur_sigma2 * cur_sigma2));
+						gcoarse += mean_curvatures(res_coarse.idx_dist_pair[i].first) * w;
+						wcoarse += w;
+					}
+					G_coarse(v) = gcoarse / wcoarse;
+				}
+				// calculate vertex saliencies for this scale
+				vertex_saliencies(Eigen::all, scale - m_start_scale) = (G_fine - G_coarse).cwiseAbs();
 			}
 
 			// sum up saliencies for all scales (using non maximum suppression)
