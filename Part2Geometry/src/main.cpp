@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
 
 		igl::readOBJ("assets/models/RD-01/16021_OnyxCeph3_Export_OK-A.obj", V1, F1);
 		igl::per_vertex_normals(V1, F1, N1);
-		Eigen::Vector3d origvec = { 0,1,0 };
+		Eigen::Vector3d origvec = { 1,1,1 };
 		
 		SymmetryDetector<MeshSamplers::IntegralInvariantSignaturesSampler> symmd(ICPParams{ 50.0, 0.2, 1e-2, 1e-4, 50 }, MeshSamplers::IntegralInvariantSignaturesSampler{});
 		auto now = std::chrono::high_resolution_clock::now();
