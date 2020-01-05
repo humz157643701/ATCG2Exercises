@@ -6,15 +6,9 @@
 #include <stdexcept>
 
 ICPAligner::ICPAligner(const Eigen::MatrixXd & target_points) :
-	m_target_octree(nullptr),
-	m_octree_data()
+	m_target_kdtree(nullptr)
 {
-	m_octree_data.reserve(static_cast<std::size_t>(target_points.rows()));
-	std::cout << "ICP: Converting data for octree...\n";
-	for (Eigen::DenseIndex i = 0; i < target_points.rows(); ++i)
-		m_octree_data.push_back(Vec3{ static_cast<float>(target_points(i, 0)), static_cast<float>(target_points(i, 1)), static_cast<float>(target_points(i, 2) )});
-	std::cout << "ICP: Building octree...\n";
-	buildOctree(m_octree_data);
+	buildKDTree(target_points);
 }
 
 double ICPAligner::align(Eigen::Matrix3d & optimal_rotation,
@@ -83,12 +77,7 @@ double ICPAligner::align(Eigen::Matrix3d & optimal_rotation, Eigen::Vector3d & o
 
 void ICPAligner::setTargetPoints(const Eigen::MatrixXd & target_points)
 {
-	m_octree_data.clear();
-	std::cout << "ICP: Converting data for octree...\n";
-	for (Eigen::DenseIndex i = 0; i < target_points.rows(); ++i)
-		m_octree_data.push_back(Vec3{ static_cast<float>(target_points(i, 0)), static_cast<float>(target_points(i, 1)), static_cast<float>(target_points(i, 2)) });
-	std::cout << "ICP: Building octree...\n";
-	buildOctree(m_octree_data);
+	buildKDTree(target_points);
 }
 
 void ICPAligner::applyRigidTransform(Eigen::MatrixXd & points, const Eigen::Matrix3d & optimal_rotation, const Eigen::Vector3d & optimal_translation, bool reorthonormalize_rotation)
@@ -107,10 +96,10 @@ void ICPAligner::applyRigidTransform(Eigen::MatrixXd & points, const Eigen::Matr
 	points.rowwise() += optimal_translation.transpose();
 }
 
-void ICPAligner::buildOctree(const std::vector<Vec3>& points)
+void ICPAligner::buildKDTree(const Eigen::MatrixXd& points)
 {
-	m_target_octree.reset(new Octree(points));
-	m_target_octree->build(1);
+	m_target_kdtree.reset(new kdtree_t(3, points));
+	m_target_kdtree->index->buildIndex();
 }
 
 double ICPAligner::calcMAE(const Eigen::MatrixXd & a, const Eigen::MatrixXd & b)
@@ -164,9 +153,11 @@ void ICPAligner::genCorrespondences(Eigen::MatrixXi& correspondences,
 
 	for (Eigen::DenseIndex q = 0; q < query_points.rows(); ++q)
 	{
-		auto res = m_target_octree->query_knn(Vec3{ static_cast<float>(query_points(q, 0)), static_cast<float>(query_points(q, 1)), static_cast<float>(query_points(q, 2)) }, 1);
-		auto nnidx = static_cast<Eigen::DenseIndex>(res.idx_dist_pair[0].first);
-		double distance = static_cast<double>(res.idx_dist_pair[0].second);
+		double qp[] = { query_points(q, 0), query_points(q, 1), query_points(q, 2) };
+		Eigen::DenseIndex nnidx;
+		double distance;
+		m_target_kdtree->query(&qp[0], 1, &nnidx, &distance);
+		distance = std::sqrt(distance);
 		double costheta = query_normals.row(q).dot(target_normals.row(nnidx));
 		if (distance <= max_distance && costheta >= min_normal_cos_theta)
 		{

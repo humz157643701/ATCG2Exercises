@@ -1,6 +1,6 @@
 #ifndef _ICP_H_
 #define _ICP_H_
-#include <Octree.h>
+#include <nanoflann.hpp>
 #include <memory>
 #include <Eigen/Dense>
 #include <limits>
@@ -16,6 +16,7 @@ struct ICPParams
 
 class ICPAligner
 {
+	using kdtree_t = nanoflann::KDTreeEigenMatrixAdaptor<Eigen::MatrixXd, 3, nanoflann::metric_L2>;
 public:
 	ICPAligner(const Eigen::MatrixXd& target_points);
 
@@ -40,7 +41,7 @@ public:
 	void setTargetPoints(const Eigen::MatrixXd& target_points);
 	static void applyRigidTransform(Eigen::MatrixXd& points, const Eigen::Matrix3d& optimal_rotation, const Eigen::Vector3d& optimal_translation, bool reorthonormalize_rotation = false);
 private:
-	void buildOctree(const std::vector<Vec3>& points);
+	void buildKDTree(const Eigen::MatrixXd& points);
 	double calcMAE(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b);
 	double calcMAE(const Eigen::MatrixXd& a, const Eigen::MatrixXd& b, const Eigen::MatrixXi& correspondences);
 	void calcWeights(Eigen::VectorXd& weights, const Eigen::MatrixXd& distances);
@@ -54,8 +55,7 @@ private:
 		const Eigen::MatrixXd& query_normals,
 		double max_distance = std::numeric_limits<double>::max(),
 		double min_normal_cos_theta = -1.0);
-	std::unique_ptr<Octree> m_target_octree;
-	std::vector<Vec3> m_octree_data;
+	std::unique_ptr<kdtree_t> m_target_kdtree;
 };
 
 #endif
