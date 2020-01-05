@@ -14,10 +14,12 @@ list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/meshsamplers.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/Octree.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/integral_invariant_signatures.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/mesh_saliency.h")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/mesh.h")
 
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/icp.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Octree.cpp")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/mesh.cpp")
 
 ##--------------------------------build source groups for visual studio-------------------------------------------------
 

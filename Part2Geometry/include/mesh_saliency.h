@@ -21,9 +21,7 @@ namespace MeshSamplers
 		{}
 
 		void sampleMeshPoints(
-			const Eigen::MatrixXd& vertices,
-			const Eigen::MatrixXd& normals,
-			const Eigen::MatrixXi& faces,
+			const Mesh& mesh,
 			Eigen::MatrixXd& sampled_points,
 			Eigen::MatrixXd& sampled_normals
 		)
@@ -75,7 +73,10 @@ namespace MeshSamplers
 						gfine += mean_curvatures(res_fine.idx_dist_pair[i].first) * w;
 						wfine += w;
 					}
-					G_fine(v) = gfine / wfine;
+					if (wfine != 0.0)
+						G_fine(v) = gfine / wfine;
+					else
+						G_fine(v) = 0.0;
 					// calculate G_coarse; gaussian weighted average of mean curvature with sdev 2 * scale * epsilon
 					double wcoarse = 0.0;
 					double gcoarse = 0.0;
@@ -87,13 +88,29 @@ namespace MeshSamplers
 						gcoarse += mean_curvatures(res_coarse.idx_dist_pair[i].first) * w;
 						wcoarse += w;
 					}
-					G_coarse(v) = gcoarse / wcoarse;
+					if (wcoarse != 0.0)
+						G_coarse(v) = gcoarse / wcoarse;
+					else
+						G_coarse(v) = 0.0;
 				}
-				// calculate vertex saliencies for this scale
+				// calculate vertex saliencies for this scale (DoG's)
 				vertex_saliencies(Eigen::all, scale - m_start_scale) = (G_fine - G_coarse).cwiseAbs();
 			}
 
-			// sum up saliencies for all scales (using non maximum suppression)
+			// vertex saliencies now represents unnormalized DoG scale space of mean curvature
+
+			// normalize scale saliencies
+			for (std::size_t scale = m_start_scale; scale <= m_end_scale; ++scale)
+			{
+				// for each scale calculate mean local maxima and global maximum
+				Eigen::DenseIndex global_maximum_idx;
+				double global_maximum = vertex_saliencies(Eigen::all, static_cast<Eigen::DenseIndex>(scale - m_start_scale)).maxCoeff(&global_maximum_idx);
+
+				// local maxima
+			}
+
+
+			// sum up saliencies for all scales
 
 			// search for vertices with high saliency
 		}

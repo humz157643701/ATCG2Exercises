@@ -36,7 +36,7 @@ public:
 		m_icp_params(icpparams)
 	{}
 
-	SymmetryResult findMainSymmetryPlane(const Eigen::MatrixXd& vertices, const Eigen::MatrixXd& normals, const Eigen::MatrixXi& faces, const Eigen::Vector3d& initial_plane_normal)
+	SymmetryResult findMainSymmetryPlane(const Mesh& mesh, const Eigen::Vector3d& initial_plane_normal)
 	{
 		// --- sample points on mesh ---
 		Eigen::MatrixXd Vt;

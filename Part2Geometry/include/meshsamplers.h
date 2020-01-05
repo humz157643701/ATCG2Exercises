@@ -1,6 +1,8 @@
 #ifndef _MESH_SAMPLERS_H_
 #define _MESH_SAMPLERS_H_
 #include <Eigen/Dense>
+#include <vector>
+#include <mesh.h>
 namespace MeshSamplers
 {
 	// default sampler
@@ -8,15 +10,13 @@ namespace MeshSamplers
 	struct PassthroughSampler
 	{
 		static void sampleMeshPoints(
-			const Eigen::MatrixXd& vertices,
-			const Eigen::MatrixXd& normals,
-			const Eigen::MatrixXi& faces,
+			const Mesh& mesh,
 			Eigen::MatrixXd& sampled_points,
 			Eigen::MatrixXd& sampled_normals
 		)
 		{
-			sampled_points = vertices;
-			sampled_normals = normals;
+			sampled_points = mesh.vertices;
+			sampled_normals = mesh.normals;
 		}
 	};
 }
