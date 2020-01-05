@@ -5,6 +5,7 @@
 #include <Eigen/Geometry>
 #include <meshsamplers.h>
 #include <chrono>
+#include <mesh.h>
 
 struct Plane
 {
@@ -44,11 +45,15 @@ int main(int argc, char *argv[])
 
 		igl::readOBJ("assets/models/RD-01/16021_OnyxCeph3_Export_OK-A.obj", V1, F1);
 		igl::per_vertex_normals(V1, F1, N1);
+
+		// build mesh
+		Mesh mesh(V1, N1, F1);
+
 		Eigen::Vector3d origvec = { 1,1,1 };
 		
-		SymmetryDetector<MeshSamplers::IntegralInvariantSignaturesSampler> symmd(ICPParams{ 50.0, 0.2, 1e-2, 1e-4, 50 }, MeshSamplers::IntegralInvariantSignaturesSampler{});
+		SymmetryDetector<MeshSamplers::PassthroughSampler> symmd(ICPParams{ 50.0, 0.2, 1e-2, 1e-4, 50 }, MeshSamplers::PassthroughSampler{});
 		auto now = std::chrono::high_resolution_clock::now();
-		auto res = symmd.findMainSymmetryPlane(V1, N1, F1, origvec.normalized());
+		auto res = symmd.findMainSymmetryPlane(mesh, origvec.normalized());
 		auto after = std::chrono::high_resolution_clock::now();
 		
 		auto durationmeme = std::chrono::duration_cast<std::chrono::nanoseconds>(after - now).count() * 1e-9;;

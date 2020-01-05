@@ -41,7 +41,7 @@ public:
 		// --- sample points on mesh ---
 		Eigen::MatrixXd Vt;
 		Eigen::MatrixXd Nt;
-		m_meshsampler.sampleMeshPoints(vertices, normals, faces, Vt, Nt);
+		m_meshsampler.sampleMeshPoints(mesh, Vt, Nt);
 
 		// --- find symmetry plane ---
 		Eigen::Vector3d center_of_mass{ Vt.colwise().mean().transpose() };
