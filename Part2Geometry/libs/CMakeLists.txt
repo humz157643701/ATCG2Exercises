@@ -17,6 +17,11 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/glad")
 list(APPEND link_targets glad)
 
+# nanoflann
+add_library(nanoflann INTERFACE)
+target_include_directories(nanoflann INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/nanoflann-master/include")
+list(APPEND link_targets nanoflann)
+
 # should make a target named "glew_s" available
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/glew-2.1.0/build/cmake")
 list(APPEND link_targets glew_s)

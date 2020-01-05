@@ -29,7 +29,7 @@ Mesh::Mesh(Eigen::MatrixXd && _vertices, Eigen::MatrixXd && _normals, Eigen::Mat
 	for (Eigen::DenseIndex i = 0; i < _vertices.rows(); ++i)
 		m_octree_data.push_back(Vec3{ static_cast<float>(_vertices(i, 0)), static_cast<float>(_vertices(i, 1)), static_cast<float>(_vertices(i, 2)) });
 	m_octree.reset(new Octree(m_octree_data));
-	m_octree->build();
+	m_octree->build(MESH_OCTREE_LEAF_SIZE);
 
 	// build adjencency list (hope that thing works. documentation is GREAT!)
 	igl::adjacency_list(_faces, m_adjacency_list);

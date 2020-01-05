@@ -15,8 +15,8 @@ namespace MeshSamplers
 			Eigen::MatrixXd& sampled_normals
 		)
 		{
-			sampled_points = mesh.vertices;
-			sampled_normals = mesh.normals;
+			sampled_points = mesh.vertices();
+			sampled_normals = mesh.normals();
 		}
 	};
 }

@@ -27,7 +27,9 @@ namespace MeshSamplers
 			Eigen::MatrixXd& sampled_normals
 		)
 		{
-			
+			Eigen::VectorXd mesh_saliency;
+			calculateMeshSaliency(mesh, m_scale_base, m_start_scale, m_end_scale, mesh_saliency);
+
 		}
 
 	private:

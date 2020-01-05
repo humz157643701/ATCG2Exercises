@@ -4,6 +4,7 @@
 #include <Octree.h>
 #include <vector>
 #include <igl/adjacency_list.h>
+#define MESH_OCTREE_LEAF_SIZE 5
 class Mesh
 {
 public:
@@ -19,7 +20,7 @@ public:
 	const Eigen::MatrixXd& normals() const { return m_normals; }
 	const Eigen::MatrixXi& faces() const { return m_faces; }
 	const std::vector<std::vector<Eigen::DenseIndex>>& adjacency_list() const { return m_adjacency_list; }
-	const Octree& octree() const { return *m_octree.get() };
+	const Octree& octree() const { return *m_octree.get(); };
 private:
 	Eigen::MatrixXd m_vertices;
 	Eigen::MatrixXi m_faces;

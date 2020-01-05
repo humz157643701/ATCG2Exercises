@@ -6,6 +6,7 @@
 #include <Octree.h>
 #include <cmath>
 #include <mesh.h>
+#include <iostream>
 
 
 void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t start_scale, std::size_t end_scale, Eigen::VectorXd& vertex_saliency)
@@ -13,6 +14,7 @@ void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t star
 	vertex_saliency.resize(mesh.vertices().rows());
 	vertex_saliency.setZero();
 	// first compute mean curvature
+	std::cout << "Calculating mean curvature...\n";
 	Eigen::SparseMatrix<double> L, M, Minv;
 	igl::cotmatrix(mesh.vertices(), mesh.faces(), L);
 	igl::massmatrix(mesh.vertices(), mesh.faces(), igl::MASSMATRIX_TYPE_VORONOI, M);
@@ -33,15 +35,21 @@ void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t star
 	// iterate through all scales and compute per-scale vertex saliencies
 	Eigen::VectorXd G_fine(mesh.vertices().rows());
 	Eigen::VectorXd G_coarse(mesh.vertices().rows());
+	std::cout << "Calculating per-scale saliencies...\n";
 	for (std::size_t scale = start_scale; scale <= end_scale; ++scale)
 	{
+		std::cout << "Scale " << std::to_string(scale) << "\n";
 		double cur_sigma = static_cast<double>(scale) * epsilon;
 		double cur_sigma2 = 2.0 * cur_sigma;
+		std::cout << "Calculating fine and coarse saliency...\n";
 		for (Eigen::DenseIndex v = 0; v < mesh.vertices().rows(); ++v)
 		{
-			// search for neighbours using octree
-			auto res_fine = mesh.octree().query_radius(Vec3(mesh.vertices()(v, 0), mesh.vertices()(v, 1), mesh.vertices()(v, 2)), 2.0 * cur_sigma);
+			//std::cout << "Vertex " << std::to_string(v) << "\n";
+			// search for neighbours using octree (octree query_radius doesn't seem to work correctly)
+			auto res_fine = mesh.octree().query_radius(Vec3(mesh.vertices()(v, 0), mesh.vertices()(v, 1), mesh.vertices()(v, 2)), 2.0 * cur_sigma);			
 			auto res_coarse = mesh.octree().query_radius(Vec3(mesh.vertices()(v, 0), mesh.vertices()(v, 1), mesh.vertices()(v, 2)), 2.0 * cur_sigma2);
+			res_fine.idx_dist_pair.push_back(std::make_pair(v, 0.0));
+			res_coarse.idx_dist_pair.push_back(std::make_pair(v, 0.0));
 			// calculate G_fine; gaussian weighted average of mean curvature with sdev scale * epsilon
 			double wfine = 0.0;
 			double gfine = 0.0;
@@ -80,10 +88,13 @@ void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t star
 	// vertex saliencies now represents unnormalized DoG scale space of mean curvature
 
 	// normalize scale saliencies
+	std::cout << "Normalizing per-scale saliency...\n";
 	for (std::size_t scale = start_scale; scale <= end_scale; ++scale)
 	{
+		std::cout << "Scale " << std::to_string(scale) << "\n";
 		// for each scale calculate mean local maxima and global maximum
 		// global maximum
+		std::cout << "Calculating global maximum...\n";
 		Eigen::DenseIndex global_maximum_idx;
 		double global_maximum = vertex_saliencies(Eigen::all, static_cast<Eigen::DenseIndex>(scale - start_scale)).maxCoeff(&global_maximum_idx);
 
@@ -91,6 +102,7 @@ void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t star
 		double mean_local_maximum = 0.0;
 		size_t num_local_maxima = 0;
 
+		std::cout << "Calculating mean local maximum...\n";
 		for (Eigen::DenseIndex v = 0; v < vertex_saliencies.rows(); ++v)
 		{
 			// if center vertex v is greater than neighbourhood, it is a local maximum
@@ -119,9 +131,11 @@ void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t star
 			mean_local_maximum = 0.0;
 
 		// normalize this scale's saliency
+		std::cout << "Normalizing salience for this scale...\n";
 		vertex_saliencies(Eigen::all, static_cast<Eigen::DenseIndex>(scale - start_scale)) *= ((global_maximum - mean_local_maximum) * (global_maximum - mean_local_maximum));
 	}
 	// sum up saliencies for all scales
-	Eigen::VectorXd vertex_saliency = vertex_saliencies.rowwise().sum();
+	std::cout << "Calculating final mesh salience...\n";
+	vertex_saliency = vertex_saliencies.rowwise().sum();
 }
 

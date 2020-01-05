@@ -5,6 +5,7 @@
 #include <limits>
 #include <icp.h>
 #include <chrono>
+#include <mesh.h>
 
 struct SymmetryResult
 {
