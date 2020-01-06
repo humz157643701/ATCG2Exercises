@@ -46,29 +46,29 @@ int main(int argc, char *argv[])
 		std::cout << "--- Loading meshes...\n";
 
 		igl::readOBJ("assets/models/RD-01/16021_OnyxCeph3_Export_OK-A.obj", V1, F1);
-		//igl::readOBJ("assets/models/dino.obj", V1, F1);
+		//igl::readOBJ("assets/models/uglypot.obj", V1, F1);
 		//igl::readOFF("assets/models/bumpy.off", V1, F1);
 		igl::per_vertex_normals(V1, F1, N1);
 
 		// build mesh
 		std::cout << "--- Building mesh data structure...\n";
 		Mesh mesh(V1, N1, F1);
-		//Eigen::VectorXd mesh_saliency;
-		//std::cout << "--- Calculating mesh saliency...\n";
-		//calculateMeshSaliency(mesh, 0.005, 1, 6, mesh_saliency);
-		//double max_sal = mesh_saliency.maxCoeff();		
-		//double min_sal = mesh_saliency.minCoeff();		
+		MeshSamplers::MeshSaliencySampler sampler(0.003, 1, 5, false, 0.005);
+		Eigen::MatrixXd VSal;
+		Eigen::MatrixXd NSal;
+		Eigen::VectorXd mesh_saliency;
+		Eigen::MatrixXd C1;
+		sampler.sampleMeshPoints(mesh, VSal, NSal, mesh_saliency);
 
-		//std::cout << "max " << max_sal << " min " << min_sal << "\n";
-		//Eigen::MatrixXd C1(V1.rows(), 3);
-		////igl::jet((((mesh_saliency.array() - min_sal) + 1.0).log() / (std::log(max_sal - min_sal + 1.0))).matrix(), true, C1);
-		//igl::jet((mesh_saliency.array() + 1.0).log().matrix(), true, C1);
-		////igl::jet(mesh_saliency, true, C1);
+		igl::jet((1.0 + mesh_saliency.array()).log().matrix(), true, C1);
 
-		//igl::opengl::glfw::Viewer view;
-		//view.data().set_mesh(V1, F1);
-		//view.data().set_colors(C1);
-		//view.launch();
+		igl::opengl::glfw::Viewer view;
+		view.data().set_mesh(V1, F1);
+		view.data().set_colors(C1);
+		view.data().point_size = 5.0;
+		view.data().set_points(VSal, Eigen::RowVector3d(1.0, 0.0, 0.0));
+		
+		view.launch();
 
 		//Eigen::Vector3d origvec = { 1,1,0.3 };
 		//

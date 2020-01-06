@@ -6,7 +6,9 @@
 #include <cmath>
 #include <mesh.h>
 #include <iostream>
-#include "..\include\mesh_saliency.h"
+#include <algorithm>
+#include <mesh_saliency.h>
+
 
 
 void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t start_scale, std::size_t end_scale, Eigen::VectorXd& vertex_saliency, bool normalize)
@@ -50,12 +52,10 @@ void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t star
 		
 		for (Eigen::DenseIndex v = 0; v < mesh.vertices().rows(); ++v)
 		{
-			rad_search_res_fine.clear();
-			rad_search_res_coarse.clear();
 			double query_point[] = { mesh.vertices()(v, 0), mesh.vertices()(v, 1), mesh.vertices()(v, 2) };
-			mesh.kdtree().index->radiusSearch(&query_point[0], (2.0 * cur_sigma) * (2.0 * cur_sigma), rad_search_res_fine, nanoflann::SearchParams(0, 0.0, false));
-			mesh.kdtree().index->radiusSearch(&query_point[0], (2.0 * cur_sigma2) * (2.0 * cur_sigma2), rad_search_res_coarse, nanoflann::SearchParams(0, 0.0, false));
-			// calculate G_fine; gaussian weighted average of mean curvature with sdev scale * epsilon
+			// calculate G_fine; gaussian weighted average of mean curvature with sdev scale * epsilon			
+			rad_search_res_fine.clear();			
+			mesh.kdtree().index->radiusSearch(&query_point[0], (2.0 * cur_sigma) * (2.0 * cur_sigma), rad_search_res_fine, nanoflann::SearchParams(0, 0.0, false));			
 			double wfine = 0.0;
 			double gfine = 0.0;
 			for (size_t i = 0; i < rad_search_res_fine.size(); ++i)
@@ -68,7 +68,10 @@ void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t star
 				G_fine(v) = gfine / wfine;
 			else
 				G_fine(v) = 0.0;
+			
 			// calculate G_coarse; gaussian weighted average of mean curvature with sdev 2 * scale * epsilon
+			rad_search_res_coarse.clear();
+			mesh.kdtree().index->radiusSearch(&query_point[0], (2.0 * cur_sigma2) * (2.0 * cur_sigma2), rad_search_res_coarse, nanoflann::SearchParams(0, 0.0, false));
 			double wcoarse = 0.0;
 			double gcoarse = 0.0;
 			for (size_t i = 0; i < rad_search_res_coarse.size(); ++i)
@@ -151,4 +154,90 @@ void MeshSamplers::MeshSaliencySampler::sampleMeshPoints(const Mesh & mesh, Eige
 	calculateMeshSaliency(mesh, m_scale_base, m_start_scale, m_end_scale, mesh_saliency, m_normalize);
 
 	// search local minima, sort by saliency and return the best 90% or so
+	// local maxima: do simple non maximum suppression based on one ring neighbourhood
+	size_t num_local_maxima = 0;
+	std::vector<std::pair<Eigen::DenseIndex, double>> local_maxima(static_cast<size_t>(mesh.vertices().rows() / 10));
+
+	for (Eigen::DenseIndex v = 0; v < mesh_saliency.rows(); ++v)
+	{		
+		bool is_local_maximum = true;
+		for (std::size_t i = 0; i < mesh.adjacency_list()[static_cast<std::size_t>(v)].size(); ++i)
+		{
+			if (mesh_saliency(mesh.adjacency_list()[static_cast<std::size_t>(v)][i]) > mesh_saliency(v))
+			{
+				is_local_maximum = false;
+				break;
+			}
+		}
+		if (is_local_maximum)
+		{
+			local_maxima.push_back(std::make_pair(v, mesh_saliency(v)));
+		}		
+	}
+
+	// sort local maxima by saliency score, descending order
+	std::sort(local_maxima.begin(), local_maxima.end(), [](const std::pair<Eigen::DenseIndex, double>& a, const std::pair<Eigen::DenseIndex, double>& b) {
+		return a.second > b.second;
+	});
+
+	std::size_t num_samples = std::min(local_maxima.size(), static_cast<size_t>(mesh.vertices().rows() * m_max_sal_point_fraction));
+
+	sampled_points.resize(num_samples, 3);
+	sampled_normals.resize(num_samples, 3);
+
+	// return the best local minima points and normals
+	for (Eigen::DenseIndex i = 0; i < static_cast<std::size_t>(num_samples); ++i)
+	{
+		sampled_points(i, Eigen::all) = mesh.vertices()(local_maxima[i].first, Eigen::all);
+		sampled_normals(i, Eigen::all) = mesh.normals()(local_maxima[i].first, Eigen::all);
+	}	
+}
+
+void MeshSamplers::MeshSaliencySampler::sampleMeshPoints(const Mesh & mesh, Eigen::MatrixXd & sampled_points, Eigen::MatrixXd & sampled_normals, Eigen::VectorXd & _mesh_saliency)
+{
+	Eigen::VectorXd mesh_saliency;
+	calculateMeshSaliency(mesh, m_scale_base, m_start_scale, m_end_scale, mesh_saliency, m_normalize);
+
+	// search local minima, sort by saliency and return the best 90% or so
+	// local maxima: do simple non maximum suppression based on one ring neighbourhood
+	size_t num_local_maxima = 0;
+	std::vector<std::pair<Eigen::DenseIndex, double>> local_maxima(static_cast<size_t>(mesh.vertices().rows() / 10));
+
+	for (Eigen::DenseIndex v = 0; v < mesh_saliency.rows(); ++v)
+	{
+		bool is_local_maximum = true;
+		for (std::size_t i = 0; i < mesh.adjacency_list()[static_cast<std::size_t>(v)].size(); ++i)
+		{
+			if (mesh_saliency(mesh.adjacency_list()[static_cast<std::size_t>(v)][i]) > mesh_saliency(v))
+			{
+				is_local_maximum = false;
+				break;
+			}
+		}
+		if (is_local_maximum)
+		{
+			local_maxima.push_back(std::make_pair(v, mesh_saliency(v)));
+		}
+	}
+
+	// sort local maxima by saliency score, descending order
+	std::sort(local_maxima.begin(), local_maxima.end(), [](const std::pair<Eigen::DenseIndex, double>& a, const std::pair<Eigen::DenseIndex, double>& b) {
+		return a.second > b.second;
+	});
+
+	std::size_t num_samples = std::min(local_maxima.size(), static_cast<size_t>(mesh.vertices().rows() * m_max_sal_point_fraction));
+
+	sampled_points.resize(num_samples, 3);
+	sampled_normals.resize(num_samples, 3);
+
+	// return the best local minima points and normals
+	for (Eigen::DenseIndex i = 0; i < static_cast<std::size_t>(num_samples); ++i)
+	{
+		sampled_points(i, Eigen::all) = mesh.vertices()(local_maxima[i].first, Eigen::all);
+		sampled_normals(i, Eigen::all) = mesh.normals()(local_maxima[i].first, Eigen::all);
+	}
+
+	// return saliency scores for debug purposes
+	_mesh_saliency.resize(mesh_saliency.rows());
+	_mesh_saliency = mesh_saliency;
 }
