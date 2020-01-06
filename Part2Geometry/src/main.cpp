@@ -8,6 +8,8 @@
 #include <chrono>
 #include <mesh.h>
 #include <igl/jet.h>
+#include <fstream>
+
 
 struct Plane
 {
@@ -46,10 +48,10 @@ int main(int argc, char *argv[])
 		std::cout << "--- Loading meshes...\n";
 
 		igl::readOBJ("assets/models/RD-01/16021_OnyxCeph3_Export_OK-A.obj", V1, F1);
+		
 		//igl::readOBJ("assets/models/dino.obj", V1, F1);
 		//igl::readOFF("assets/models/bumpy.off", V1, F1);
 		igl::per_vertex_normals(V1, F1, N1);
-
 		// build mesh
 		std::cout << "--- Building mesh data structure...\n";
 		Mesh mesh(V1, N1, F1);
@@ -70,15 +72,15 @@ int main(int argc, char *argv[])
 		//view.data().set_colors(C1);
 		//view.launch();
 
-		//Eigen::Vector3d origvec = { 1,1,0.3 };
-		//
-		//SymmetryDetector<MeshSamplers::PassthroughSampler> symmd(ICPParams{ (mesh.vertices().colwise().maxCoeff() - mesh.vertices().colwise().minCoeff()).norm() * 0.3, 0.4, 1e-2, 1e-4, 150 }, MeshSamplers::PassthroughSampler{});
-		//auto now = std::chrono::high_resolution_clock::now();
-		//auto res = symmd.findMainSymmetryPlane(mesh, origvec.normalized());
-		//auto after = std::chrono::high_resolution_clock::now();
-		//
-		//auto durationmeme = std::chrono::duration_cast<std::chrono::nanoseconds>(after - now).count() * 1e-9;;
-		//std::cout << "#############################\nSymmetry found!\n Duration:  " << durationmeme << "s \n#############################\n";
+		Eigen::Vector3d origvec = { 1,1,0.3 };
+		
+		SymmetryDetector<MeshSamplers::IntegralInvariantSignaturesSampler> symmd(ICPParams{ (mesh.vertices().colwise().maxCoeff() - mesh.vertices().colwise().minCoeff()).norm() * 0.3, 0.4, 1e-2, 1e-4, 150 }, MeshSamplers::IntegralInvariantSignaturesSampler{ "Q:/Repository/atcg2geometrybuild/build/assets/models/RD-01/16021_OnyxCeph3_Export_OK-A.obj_256.obj" });
+		auto now = std::chrono::high_resolution_clock::now();
+		auto res = symmd.findMainSymmetryPlane(mesh, origvec.normalized());
+		auto after = std::chrono::high_resolution_clock::now();
+		
+		auto durationmeme = std::chrono::duration_cast<std::chrono::nanoseconds>(after - now).count() * 1e-9;;
+		std::cout << "#############################\nSymmetry found!\n Duration:  " << durationmeme << "s \n#############################\n";
 
 		//{
 		//	//Eigen::MatrixXd V2(V1);
