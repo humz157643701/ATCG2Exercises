@@ -11,7 +11,7 @@
 
 
 
-void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t start_scale, std::size_t end_scale, Eigen::VectorXd& vertex_saliency, bool normalize)
+void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t start_scale, std::size_t end_scale, Eigen::VectorXd& vertex_saliency, ScaleType scale_type)
 {
 	vertex_saliency.resize(mesh.vertices().rows());
 	vertex_saliency.setZero();
@@ -39,56 +39,46 @@ void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t star
 	double epsilon = aabb_diag * scale_base;
 
 	// iterate through all scales and compute per-scale vertex saliencies
-	Eigen::VectorXd G_fine(mesh.vertices().rows());
-	Eigen::VectorXd G_coarse(mesh.vertices().rows());
-	std::cout << "Calculating per-scale saliencies...\n";
-	std::vector<std::pair<long long, double>> rad_search_res_fine;
-	std::vector<std::pair<long long, double>> rad_search_res_coarse;
-	for (std::size_t scale = start_scale; scale <= end_scale; ++scale)
-	{
-		std::cout << "Scale " << std::to_string(scale) << "\n";
-		double cur_sigma = static_cast<double>(scale) * epsilon;
-		double cur_sigma2 = 2.0 * cur_sigma;
-		
+	Eigen::MatrixXd G_pyr(mesh.vertices().rows(), static_cast<Eigen::DenseIndex>(numscales + 1));
+	std::cout << "Calculating gaussian pyramid...\n";
+	std::vector<std::pair<long long, double>> rad_search_res;
+	for (std::size_t scale = start_scale; scale <= (end_scale + 1); ++scale)
+	{				
+		Eigen::DenseIndex scaleidx = static_cast<Eigen::DenseIndex>(scale - start_scale);
+		std::cout << "Level " << std::to_string(scaleidx) << "\n";
+		double cur_sigma;
+		if (scale_type == ScaleType::DOUBLE_SIGMA_EVERY_SCALE)
+			cur_sigma = static_cast<double>(start_scale) * epsilon * static_cast<double>(Eigen::DenseIndex(1) << scaleidx);
+		else if(scale_type == ScaleType::LINEAR_INCREASE)
+			cur_sigma = static_cast<double>(start_scale) * epsilon * static_cast<double>(scaleidx + 1);
+
 		for (Eigen::DenseIndex v = 0; v < mesh.vertices().rows(); ++v)
 		{
 			double query_point[] = { mesh.vertices()(v, 0), mesh.vertices()(v, 1), mesh.vertices()(v, 2) };
 			// calculate G_fine; gaussian weighted average of mean curvature with sdev scale * epsilon			
-			rad_search_res_fine.clear();			
-			mesh.kdtree().index->radiusSearch(&query_point[0], (2.0 * cur_sigma) * (2.0 * cur_sigma), rad_search_res_fine, nanoflann::SearchParams(0, 0.0, false));			
-			double wfine = 0.0;
-			double gfine = 0.0;
-			for (size_t i = 0; i < rad_search_res_fine.size(); ++i)
+			rad_search_res.clear();			
+			mesh.kdtree().index->radiusSearch(&query_point[0], (2.0 * cur_sigma) * (2.0 * cur_sigma), rad_search_res, nanoflann::SearchParams(0, 0.0, false));			
+			double weight = 0.0;
+			double g = 0.0;
+			for (size_t i = 0; i < rad_search_res.size(); ++i)
 			{
-				double w = std::exp(-rad_search_res_fine[i].second / (2.0 * cur_sigma * cur_sigma));
-				gfine += mean_curvatures(rad_search_res_fine[i].first) * w;
-				wfine += w;
+				double w = std::exp(-rad_search_res[i].second / (2.0 * cur_sigma * cur_sigma));
+				g += mean_curvatures(rad_search_res[i].first) * w;
+				weight += w;
 			}
-			if (wfine != 0.0)
-				G_fine(v) = gfine / wfine;
+			if (weight != 0.0)
+				G_pyr(v, scaleidx) = g / weight;
 			else
-				G_fine(v) = 0.0;
-			
-			// calculate G_coarse; gaussian weighted average of mean curvature with sdev 2 * scale * epsilon
-			rad_search_res_coarse.clear();
-			mesh.kdtree().index->radiusSearch(&query_point[0], (2.0 * cur_sigma2) * (2.0 * cur_sigma2), rad_search_res_coarse, nanoflann::SearchParams(0, 0.0, false));
-			double wcoarse = 0.0;
-			double gcoarse = 0.0;
-			for (size_t i = 0; i < rad_search_res_coarse.size(); ++i)
-			{
-				double w = std::exp(-rad_search_res_coarse[i].second / (2.0 * cur_sigma2 * cur_sigma2));
-				gcoarse += mean_curvatures(rad_search_res_coarse[i].first) * w;
-				wcoarse += w;
-			}
-			if (wcoarse != 0.0)
-				G_coarse(v) = gcoarse / wcoarse;
-			else
-				G_coarse(v) = 0.0;
+				G_pyr(v, scaleidx) = 0.0;
 		}
-		// calculate vertex saliencies for this scale (DoG's)
-		vertex_saliencies(Eigen::all, scale - start_scale) = (G_fine - G_coarse).cwiseAbs();
-		if (normalize)
-			vertex_saliencies(Eigen::all, scale - start_scale) *= (cur_sigma * cur_sigma);
+	}
+
+	std::cout << "Calculating DoG scales...\n";
+	for (std::size_t scale = start_scale; scale <= end_scale; ++scale)
+	{
+		Eigen::DenseIndex scaleidx = static_cast<Eigen::DenseIndex>(scale - start_scale);
+		std::cout << "Scale " << std::to_string(scale) << "\n";
+		vertex_saliencies(Eigen::all, scaleidx) = (G_pyr(Eigen::all, scaleidx) - G_pyr(Eigen::all, scaleidx + 1)).cwiseAbs();
 	}
 
 	// vertex saliencies now represents unnormalized DoG scale space of mean curvature
@@ -151,7 +141,7 @@ void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t star
 void MeshSamplers::MeshSaliencySampler::sampleMeshPoints(const Mesh & mesh, Eigen::MatrixXd & sampled_points, Eigen::MatrixXd & sampled_normals)
 {
 	Eigen::VectorXd mesh_saliency;
-	calculateMeshSaliency(mesh, m_scale_base, m_start_scale, m_end_scale, mesh_saliency, m_normalize);
+	calculateMeshSaliency(mesh, m_scale_base, m_start_scale, m_end_scale, mesh_saliency, m_scale_type);
 
 	// search local minima, sort by saliency and return the best 90% or so
 	// local maxima: do simple non maximum suppression based on one ring neighbourhood
@@ -196,7 +186,7 @@ void MeshSamplers::MeshSaliencySampler::sampleMeshPoints(const Mesh & mesh, Eige
 void MeshSamplers::MeshSaliencySampler::sampleMeshPoints(const Mesh & mesh, Eigen::MatrixXd & sampled_points, Eigen::MatrixXd & sampled_normals, Eigen::VectorXd & _mesh_saliency)
 {
 	Eigen::VectorXd mesh_saliency;
-	calculateMeshSaliency(mesh, m_scale_base, m_start_scale, m_end_scale, mesh_saliency, m_normalize);
+	calculateMeshSaliency(mesh, m_scale_base, m_start_scale, m_end_scale, mesh_saliency, m_scale_type);
 
 	// search local minima, sort by saliency and return the best 90% or so
 	// local maxima: do simple non maximum suppression based on one ring neighbourhood
