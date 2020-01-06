@@ -6,9 +6,10 @@
 #include <cmath>
 #include <mesh.h>
 #include <iostream>
+#include "..\include\mesh_saliency.h"
 
 
-void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t start_scale, std::size_t end_scale, Eigen::VectorXd& vertex_saliency)
+void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t start_scale, std::size_t end_scale, Eigen::VectorXd& vertex_saliency, bool normalize)
 {
 	vertex_saliency.resize(mesh.vertices().rows());
 	vertex_saliency.setZero();
@@ -83,6 +84,8 @@ void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t star
 		}
 		// calculate vertex saliencies for this scale (DoG's)
 		vertex_saliencies(Eigen::all, scale - start_scale) = (G_fine - G_coarse).cwiseAbs();
+		if (normalize)
+			vertex_saliencies(Eigen::all, scale - start_scale) *= (cur_sigma * cur_sigma);
 	}
 
 	// vertex saliencies now represents unnormalized DoG scale space of mean curvature
@@ -142,3 +145,10 @@ void calculateMeshSaliency(const Mesh& mesh, double scale_base, std::size_t star
 	vertex_saliency = vertex_saliencies.rowwise().sum();
 }
 
+void MeshSamplers::MeshSaliencySampler::sampleMeshPoints(const Mesh & mesh, Eigen::MatrixXd & sampled_points, Eigen::MatrixXd & sampled_normals)
+{
+	Eigen::VectorXd mesh_saliency;
+	calculateMeshSaliency(mesh, m_scale_base, m_start_scale, m_end_scale, mesh_saliency, m_normalize);
+
+	// search local minima, sort by saliency and return the best 90% or so
+}
