@@ -8,6 +8,7 @@
 #include <iostream>
 #include <algorithm>
 #include <mesh_saliency.h>
+#include <igl/opengl/glfw/Viewer.h>
 
 
 
@@ -180,7 +181,21 @@ void MeshSamplers::MeshSaliencySampler::sampleMeshPoints(const Mesh & mesh, Eige
 	{
 		sampled_points(i, Eigen::all) = mesh.vertices()(local_maxima[i].first, Eigen::all);
 		sampled_normals(i, Eigen::all) = mesh.normals()(local_maxima[i].first, Eigen::all);
-	}	
+	}
+
+	if (m_visualize)
+	{
+		Eigen::MatrixXd C;
+		igl::jet((1.0 + mesh_saliency.array()).log().matrix(), true, C);
+
+		igl::opengl::glfw::Viewer view;
+		view.data().set_mesh(mesh.vertices(), mesh.faces());
+		view.data().set_colors(C);
+		view.data().point_size = 5.0;
+		view.data().set_points(sampled_points, Eigen::RowVector3d(1.0, 0.0, 0.0));
+
+		view.launch();
+	}
 }
 
 void MeshSamplers::MeshSaliencySampler::sampleMeshPoints(const Mesh & mesh, Eigen::MatrixXd & sampled_points, Eigen::MatrixXd & sampled_normals, Eigen::VectorXd & _mesh_saliency)
@@ -230,4 +245,18 @@ void MeshSamplers::MeshSaliencySampler::sampleMeshPoints(const Mesh & mesh, Eige
 	// return saliency scores for debug purposes
 	_mesh_saliency.resize(mesh_saliency.rows());
 	_mesh_saliency = mesh_saliency;
+
+	if (m_visualize)
+	{
+		Eigen::MatrixXd C;
+		igl::jet((1.0 + mesh_saliency.array()).log().matrix(), true, C);
+
+		igl::opengl::glfw::Viewer view;
+		view.data().set_mesh(mesh.vertices(), mesh.faces());
+		view.data().set_colors(C);
+		view.data().point_size = 5.0;
+		view.data().set_points(sampled_points, Eigen::RowVector3d(1.0, 0.0, 0.0));
+
+		view.launch();
+	}
 }

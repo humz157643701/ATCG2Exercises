@@ -62,31 +62,16 @@ int main(int argc, char *argv[])
 		std::cout << "--- building voxel data structures...\n";
 		//teeth factor 0.310623
 		// head factor 0.001771
-		 MeshSamplers::IntegralInvariantSignaturesSampler integralsampler{ vxm,0.310623, 0.02, false };
+		 MeshSamplers::IntegralInvariantSignaturesSampler integralsampler{ vxm,0.310623, 0.02, true };
 		 
 		
 		/////// MESH SALIENCY TEST STUFF /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		/*MeshSamplers::MeshSaliencySampler sampler(0.0015, 1, 5, false, 0.0085, ScaleType::DOUBLE_SIGMA_EVERY_SCALE);
-		Eigen::MatrixXd VSal;
-		Eigen::MatrixXd NSal;
-		Eigen::VectorXd mesh_saliency;
-		Eigen::MatrixXd C1;
-		sampler.sampleMeshPoints(mesh, VSal, NSal, mesh_saliency);
-
-		igl::jet((1.0 + mesh_saliency.array()).log().matrix(), true, C1);
-
-		igl::opengl::glfw::Viewer view;
-		view.data().set_mesh(V1, F1);
-		view.data().set_colors(C1);
-		view.data().point_size = 5.0;
-		view.data().set_points(VSal, Eigen::RowVector3d(1.0, 0.0, 0.0));
 		
-		view.launch();*/
 		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 		Eigen::Vector3d origvec = { 1,1,0.3 };
 		
-		SymmetryDetector<MeshSamplers::MeshSaliencySampler> symmd(ICPParams{ (mesh.vertices().colwise().maxCoeff() - mesh.vertices().colwise().minCoeff()).norm() * 0.3, 0.4, 1e-2, 1e-4, 150 }, MeshSamplers::MeshSaliencySampler(0.0015, 1, 5, false, 0.0085, ScaleType::DOUBLE_SIGMA_EVERY_SCALE));
+		SymmetryDetector<MeshSamplers::MeshSaliencySampler> symmd(ICPParams{ (mesh.vertices().colwise().maxCoeff() - mesh.vertices().colwise().minCoeff()).norm() * 0.3, 0.4, 1e-2, 1e-4, 150 }, MeshSamplers::MeshSaliencySampler(0.0010, 1, 5, false, 0.0085, ScaleType::DOUBLE_SIGMA_EVERY_SCALE, true));
 		auto res = symmd.findMainSymmetryPlane(mesh, origvec.normalized());
 		
 		std::cout << "############################# MeshSaliencySampler Symmetry found! ###############################\n";
