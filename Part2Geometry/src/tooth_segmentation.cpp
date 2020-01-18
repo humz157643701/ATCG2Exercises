@@ -79,16 +79,43 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& featureI
 	double aabbminheight = mesh.vertices()(Eigen::all, 1).minCoeff();
 	double aabbheight = mesh.vertices()(Eigen::all, 1).maxCoeff() - aabbminheight;
 	Eigen::VectorXd active_vertex_map = (((mesh.vertices()(Eigen::all, 1).array() - aabbminheight) / aabbheight) - cuspd_params.min_feature_height).cwiseSign().cwiseMax(0.0).matrix();
+	Eigen::VectorXi active_indices(static_cast<Eigen::DenseIndex>(active_vertex_map.sum() + 0.5));
+	Eigen::DenseIndex aiidx = 0;
+	for (Eigen::DenseIndex i = 0; i < active_vertex_map.rows(); ++i)
+		if (active_vertex_map(i) > 0.0)
+			active_indices[aiidx++] = i;
 
 	// calculate signed mean curvatures
 	Eigen::VectorXd mean_curvatures = ((mean_curvature_normals.array() * smoothed_normals.array()).matrix().rowwise().sum().array()).matrix();
+
+	// remove outliers
+	double mean_mean_curvature = mean_curvatures(active_indices.array()).mean();
+	Eigen::VectorXd mcdev = (mean_mean_curvature - mean_curvatures.array()).matrix();
+	double mcsdev = std::sqrt(mcdev.dot(mcdev) / static_cast<double>(mcdev.rows()));
+
+	// remove values with zscore > max_zscore
+	Eigen::VectorXd mc_zscore = ((mcdev.array() - mean_mean_curvature) / mcsdev).cwiseAbs().matrix();
+	for (Eigen::DenseIndex i = 0; i < mean_curvatures.rows(); ++i)
+		if (mc_zscore(i) > cuspd_params.max_zscore)
+			mean_curvatures(i) = mean_mean_curvature;
+	mean_mean_curvature = mean_curvatures(active_indices.array()).mean();
+	for (Eigen::DenseIndex i = 0; i < mean_curvatures.rows(); ++i)
+		if (mc_zscore(i) > cuspd_params.max_zscore)
+			mean_curvatures(i) = mean_mean_curvature;
+
+
+	std::cout << "Mean curvature standard deviation: " << mcsdev << "\n";
+	std::cout << "Mean curvature mean: " << mean_mean_curvature << "\n";
+	std::cout << "Mean curvature max zscore: " << mc_zscore.maxCoeff() << "\n";
+	std::cout << "Mean curvature min zscore: " << mc_zscore.minCoeff() << "\n";
 
 	if (visualize_steps)
 	{
 		std::cout << "maxc " << mean_curvatures.maxCoeff() << "\n minc " << mean_curvatures.minCoeff() << "\n";
 		Eigen::MatrixXd C;
 		igl::opengl::glfw::Viewer viewer;
-		igl::jet(((mean_curvatures.array() /*- mean_curvatures.minCoeff()*/ + 1.0).log() / std::log(mean_curvatures.maxCoeff() /*- mean_curvatures.minCoeff()*/ + 1.0)).matrix().cwiseMax(0.0), true, C);
+		igl::jet(((mean_curvatures.array() - mean_curvatures(active_indices.array()).minCoeff()) / (mean_curvatures(active_indices.array()).maxCoeff() - mean_curvatures(active_indices.array()).minCoeff())).matrix().cwiseMax(0.0), true, C);
+		//igl::jet(mc_zscore, true, C);
 		viewer.data().set_mesh(mesh.vertices(), mesh.faces());
 		viewer.data().set_colors(C);
 		viewer.launch();
@@ -97,16 +124,28 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& featureI
 	// compute weights
 	std::cout << "- Calculating feature weights...\n";
 	// weighted average between negative mean curvature and y height. the result is multiplied by 0 if y height < cuspd_params.min_feature_height
-	Eigen::VectorXd curv_weights = ((mean_curvatures.array() - mean_curvatures(active_vertex_map.array() > 0.0).minCoeff()) / (mean_curvatures.maxCoeff() - mean_curvatures.minCoeff())).matrix();
+	double active_min_mean_curvature = mean_curvatures(active_indices.array()).minCoeff();
+	double active_max_mean_curvature = mean_curvatures(active_indices.array()).maxCoeff();
+	Eigen::VectorXd curv_weights = (((mean_curvatures.array() - active_min_mean_curvature) / (active_max_mean_curvature - active_min_mean_curvature)) * active_vertex_map.array()).matrix();// +(1.0 - active_vertex_map.array()) * active_min_mean_curvature).matrix();
 	double minheight = aabbminheight + aabbheight * cuspd_params.min_feature_height;
-	Eigen::VectorXd height_weights = ((mesh.vertices()(Eigen::all, 1).array() - minheight) / (mesh.vertices()(Eigen::all, 1).array().maxCoeff() - minheight)).matrix();
-	Eigen::VectorXd weights = (((1.0 - cuspd_params.alpha) * curv_weights + cuspd_params.alpha * height_weights).array() * active_vertex_map.array()).matrix();
+	Eigen::VectorXd height_weights = (((mesh.vertices()(Eigen::all, 1).array() - minheight) / (mesh.vertices()(Eigen::all, 1).array().maxCoeff() - minheight)) * active_vertex_map.array()).matrix();// +(1.0 - active_vertex_map.array()) * minheight).matrix();
+	// pow the weights
+	curv_weights = curv_weights.cwiseMax(0.0).array().pow(cuspd_params.curve_exp).matrix();
+	height_weights = height_weights.cwiseMax(0.0).array().pow(cuspd_params.height_exp).matrix();
+	// renormalize
+	curv_weights = (curv_weights.array() - curv_weights(active_indices).minCoeff()) / (curv_weights(active_indices).maxCoeff() - curv_weights(active_indices).minCoeff());
+	height_weights = (height_weights.array() - height_weights(active_indices).minCoeff()) / (height_weights(active_indices).maxCoeff() - height_weights(active_indices).minCoeff());
+	// combine weights
+	Eigen::VectorXd weights = ((1.0 - cuspd_params.alpha) * curv_weights.array().pow(cuspd_params.curve_exp) + cuspd_params.alpha * height_weights.array().pow(cuspd_params.height_exp)).matrix();
+
+	// renormalize weights
+	weights = (weights.array() - weights.minCoeff()) / (weights.maxCoeff() - weights.minCoeff());
 
 	if (visualize_steps)
 	{
-		std::cout << "maxc " << weights.maxCoeff() << "\n minc " << weights.minCoeff() << "\n";
+		std::cout << "maxw " << weights.maxCoeff() << "\n minw " << weights.minCoeff() << "\n";
 		Eigen::MatrixXd C;
-		igl::jet(weights, true, C);
+		igl::jet(weights, false, C);
 		igl::opengl::glfw::Viewer viewer;
 		viewer.data().set_mesh(mesh.vertices(), mesh.faces());
 		viewer.data().set_colors(C);

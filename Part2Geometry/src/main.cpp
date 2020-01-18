@@ -28,10 +28,13 @@ int main(int argc, char* argv[])
 			teeth,
 			ToothSegmentation::CuspDetectionParams{
 				0.4,
+				0.75,
+				0.9,
 				1000,
 				0.5,
-				0.001,
-				10
+				0.0002,
+				100,
+				2.5
 			},
 			true
 			);

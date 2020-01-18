@@ -19,6 +19,8 @@ public:
 	{
 		// weighting parameter: curvature <-- [0, 1] --> mesh z value
 		double alpha;
+		double curve_exp;
+		double height_exp;
 		// number of particles to use for local minimum search
 		std::size_t num_particles;
 		// fraction of bounding box height e [0,1] from jaw
@@ -27,6 +29,8 @@ public:
 		double smoothing_step_size;
 		// number of smoothing steps
 		double smoothing_steps;
+		// outlier detection
+		double max_zscore;
 	};
 
 	static void segmentTeethFromMesh(const Mesh& mesh,
