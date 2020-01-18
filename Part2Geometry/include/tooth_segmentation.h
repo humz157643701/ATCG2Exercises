@@ -15,10 +15,30 @@ public:
 	// 5. solve for harmonic field
 	// 6. cut out individual tooth meshes
 
-	static void segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vector3d& mesh_up, const Eigen::Vector3d& mesh_right, std::size_t expected_toothcount, std::vector<Mesh>& tooth_meshes);
+	struct CuspDetectionParams
+	{
+		// weighting parameter: curvature <-- [0, 1] --> mesh z value
+		double alpha;
+		// number of particles to use for local minimum search
+		std::size_t num_particles;
+		// fraction of bounding box height e [0,1] from jaw
+		double min_feature_height;
+		// smoothing step size
+		double smoothing_step_size;
+		// number of smoothing steps
+		double smoothing_steps;
+	};
+
+	static void segmentTeethFromMesh(const Mesh& mesh,
+		const Eigen::Vector3d& mesh_up,
+		const Eigen::Vector3d& mesh_right,
+		std::vector<Mesh>& tooth_meshes,
+		const CuspDetectionParams& cuspd_params = {0.4, 1000, 0.5},
+		bool visualize_steps = false
+		);
 
 private:
-	static void computeCusps(const Mesh& mesh, std::size_t expected_toothcount, Eigen::VectorXi& featureIndices);
+	static void computeCusps(const Mesh& mesh, Eigen::VectorXi& featureIndices, const CuspDetectionParams& cuspd_params, bool visualize_steps = false);
 };
 
 
