@@ -7,6 +7,7 @@
 #include <igl/jet.h>
 #include <fstream>
 #include <tooth_segmentation.h>
+#include <cmath>
 
 int main(int argc, char* argv[])
 {
@@ -27,14 +28,18 @@ int main(int argc, char* argv[])
 			Eigen::Vector3d{ -1.0, 0.0, 0.0 },
 			teeth,
 			ToothSegmentation::CuspDetectionParams{
-				0.4,
-				0.75,
-				0.9,
-				1000,
-				0.5,
-				0.0002,
-				100,
-				2.5
+				0.4, // curvature <-> height
+				0.85, // curvature exponent
+				0.8, // height exponent
+				0.5, // min feature height
+				0.00025, // smoothing step size
+				90, // smoothing steps
+				2.0, // max zscore
+				0.5, // fraction of local maxima to be considered for mean shift
+				0.0175, // mean shift window size
+				1e-4, // min total shift before convergence
+				1000, // max mean shift iterations
+				1e-6 // feature collapse distance
 			},
 			true
 			);

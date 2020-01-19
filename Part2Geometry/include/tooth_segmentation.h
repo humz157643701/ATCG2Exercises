@@ -21,8 +21,6 @@ public:
 		double alpha;
 		double curve_exp;
 		double height_exp;
-		// number of particles to use for local minimum search
-		std::size_t num_particles;
 		// fraction of bounding box height e [0,1] from jaw
 		double min_feature_height;
 		// smoothing step size
@@ -31,6 +29,16 @@ public:
 		double smoothing_steps;
 		// outlier detection
 		double max_zscore;
+		// fraction of local maxima to mean shift
+		double ms_frac;
+		// mean shift bandwidth param
+		double ms_window_size; // [0, 1] fraction of bounding box diagonal
+		// min change
+		double ms_min_total_shift;
+		// max iterations
+		std::size_t ms_max_iterations;
+		// feature collapse distance
+		double ms_ft_collapse_dist;
 	};
 
 	static void segmentTeethFromMesh(const Mesh& mesh,
@@ -42,7 +50,7 @@ public:
 		);
 
 private:
-	static void computeCusps(const Mesh& mesh, Eigen::VectorXi& featureIndices, const CuspDetectionParams& cuspd_params, bool visualize_steps = false);
+	static void computeCusps(const Mesh& mesh, Eigen::MatrixXd& features, const CuspDetectionParams& cuspd_params, bool visualize_steps = false);
 };
 
 
