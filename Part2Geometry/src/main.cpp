@@ -36,10 +36,10 @@ int main(int argc, char* argv[])
 				90, // smoothing steps
 				2.0, // max zscore
 				0.5, // fraction of local maxima to be considered for mean shift
-				0.0175, // mean shift window size
+				0.01, // mean shift window size
 				1e-4, // min total shift before convergence
 				1000, // max mean shift iterations
-				1e-6 // feature collapse distance
+				0.03 // feature collapse distance
 			},
 			true
 			);

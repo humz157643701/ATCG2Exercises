@@ -312,7 +312,7 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::MatrixXd& features
 		{
 			if (i != j && !duplmap[i])
 			{
-				if ((particles(i, Eigen::all) - particles(j, Eigen::all)).norm() < cuspd_params.ms_ft_collapse_dist && !duplmap[j])
+				if (((particles(i, Eigen::all) - particles(j, Eigen::all)).norm() < (cuspd_params.ms_ft_collapse_dist * aabb_diag)) && (!duplmap[j]))
 				{
 					duplmap[j] = true;
 				}
