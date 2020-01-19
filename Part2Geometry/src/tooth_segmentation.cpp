@@ -346,7 +346,7 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::MatrixXd& features
 		igl::opengl::glfw::Viewer viewer;
 		viewer.data().set_mesh(mesh.vertices(), mesh.faces());
 		viewer.data().set_colors(C);
-		viewer.data().point_size = 5.0;
+		viewer.data().point_size = 7.0;
 		viewer.data().set_points(features, Eigen::RowVector3d(1.0, 1.0, 1.0));
 		viewer.launch();
 	}
