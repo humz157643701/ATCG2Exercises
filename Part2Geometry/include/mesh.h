@@ -47,6 +47,7 @@ public:
 	Eigen::MatrixXd& colors() { return m_colors; }
 	const std::vector<std::vector<Eigen::DenseIndex>>& adjacency_list() const { return m_adjacency_list; }
 	const kdtree_t& kdtree() const { return *m_kdtree.get(); };
+	void recalculateKdTree();
 private:
 	Eigen::MatrixXd m_vertices;
 	Eigen::MatrixXi m_faces;

@@ -129,3 +129,9 @@ Mesh& Mesh::operator=(Mesh&& _other)
 	 
 	return *this;
 }
+
+void Mesh::recalculateKdTree()
+{
+	m_kdtree.reset(new kdtree_t(3, m_vertices));
+	m_kdtree->index->buildIndex();
+}

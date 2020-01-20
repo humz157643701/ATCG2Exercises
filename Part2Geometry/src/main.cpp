@@ -41,6 +41,7 @@ int main(int argc, char* argv[])
 				1000, // max mean shift iterations
 				0.03 // feature collapse distance
 			},
+			1000.0,
 			true
 			);
 	}

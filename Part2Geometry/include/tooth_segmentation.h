@@ -52,12 +52,28 @@ public:
 		const Eigen::Vector3d& mesh_right,
 		std::vector<Mesh>& tooth_meshes,
 		const CuspDetectionParams& cuspd_params = {0.4, 1000, 0.5},
+		double harmonic_field_w = 1000.0,
 		bool visualize_steps = false
 		);
 
 private:
-	static void computeCusps(const Mesh& mesh, Eigen::MatrixXd& features, Eigen::VectorXd& mean_curvature, const CuspDetectionParams& cuspd_params, bool visualize_steps = false);
-	static void calculateHarmonicField(const Mesh& mesh, const Eigen::VectorXd& mean_curvature, const std::vector<ToothFeature>& toothFeatures, const std::vector<Eigen::DenseIndex>& boundaryIndices, Eigen::VectorXd& harmonic_field, double w = 1000.0);
+	static void computeCusps(const Mesh& mesh,
+		Eigen::VectorXi& features,
+		Eigen::VectorXd& mean_curvature,
+		const CuspDetectionParams& cuspd_params,
+		bool visualize_steps = false);
+	static void calculateHarmonicField(const Mesh& mesh,
+		const Eigen::VectorXd& mean_curvature,
+		const std::vector<ToothFeature>& toothFeatures,
+		const Eigen::VectorXi& cut_indices,
+		Eigen::VectorXd& harmonic_field,
+		double w = 1000.0,
+		bool visualize_steps = false);
+	static void cutMesh(Mesh& mesh,
+		Eigen::VectorXi& cut_indices,
+		Eigen::VectorXi& index_map,
+		const Eigen::Vector3d& normal,
+		const Eigen::Vector3d& plane_point);
 
 };
 

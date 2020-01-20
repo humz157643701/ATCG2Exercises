@@ -6,8 +6,9 @@
 #include <igl/jet.h>
 #include <vector>
 #include <random>
+#include <Eigen/Sparse>
 
-void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vector3d& mesh_up, const Eigen::Vector3d& mesh_right, std::vector<Mesh>& tooth_meshes, const ToothSegmentation::CuspDetectionParams& cuspd_params, bool visualize_steps)
+void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vector3d& mesh_up, const Eigen::Vector3d& mesh_right, std::vector<Mesh>& tooth_meshes, const ToothSegmentation::CuspDetectionParams& cuspd_params, double harmonic_field_w, bool visualize_steps)
 {
 	// transform mesh to canonical pose
 	std::cout << "--- TOOTH SEGMENTATION ---\n";
@@ -23,6 +24,7 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 	working_mesh.vertices() *= crot.transpose();
 	working_mesh.normals() *= crot.transpose();
 	working_mesh.vertices().rowwise() += ctrans.transpose();
+	working_mesh.recalculateKdTree();
 
 	if (visualize_steps)
 	{
@@ -34,8 +36,13 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 	// compute cusp features
 	Eigen::VectorXd mean_curvature;
 	std::cout << "-- Computing cusp features...\n";
-	Eigen::MatrixXd cusps;
+	Eigen::VectorXi cusps;
 	computeCusps(working_mesh, cusps, mean_curvature, cuspd_params, true);
+	Eigen::VectorXi cut_indices;
+	Eigen::VectorXi index_map; // maps indices from cut mesh to indices from old mesh
+	cutMesh(working_mesh, cut_indices, index_map, Eigen::Vector3d{ 0.0, 1.0, -0.05 }.normalized(), Eigen::Vector3d{ 0.0, -3.0, 0.0 });
+	// remap mean curvature to cut mesh
+	Eigen::VectorXd cut_mean_curvature(mean_curvature(index_map.array()));
 
 	/////////////////////////////////////////////////////////
 	/// SPOKE FEATURE STUFF AND AUTOMATIC GINGIVA CUTTING ///
@@ -43,10 +50,13 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 
 	// assign features to teeth
 
-	// harmonic field stuff
+	//// harmonic field stuff
+	std::vector<ToothFeature> tooth_features;
+	Eigen::VectorXd harmonic_field;
+	calculateHarmonicField(working_mesh, cut_mean_curvature, tooth_features, cut_indices, harmonic_field, 1000.0);
 }
 
-void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::MatrixXd& features, Eigen::VectorXd& mean_curvature, const ToothSegmentation::CuspDetectionParams& cuspd_params, bool visualize_steps)
+void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& features, Eigen::VectorXd& mean_curvature, const ToothSegmentation::CuspDetectionParams& cuspd_params, bool visualize_steps)
 {
 	// calculate mean curvature
 	std::cout << "- Calculating mean curvature...\n";
@@ -328,13 +338,17 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::MatrixXd& features
 			numfeatures++;
 	}
 
-	features.resize(numfeatures, 3);
+	features.resize(numfeatures);
 	Eigen::DenseIndex ftct = 0;
 	for (Eigen::DenseIndex i = 0; i < static_cast<Eigen::DenseIndex>(duplmap.size()); ++i)
 	{
 		if (!duplmap[i])
 		{
-			features(ftct++, Eigen::all) = particles(i, Eigen::all);
+			double qp[] = { particles(i, 0), particles(i, 1), particles(i, 2) };
+			Eigen::Index closestidx;
+			double dist;
+			mesh.kdtree().query(qp, 1, &closestidx, &dist);
+			features(ftct++) = closestidx;
 		}
 	}
 
@@ -348,11 +362,115 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::MatrixXd& features
 		viewer.data().set_mesh(mesh.vertices(), mesh.faces());
 		viewer.data().set_colors(C);
 		viewer.data().point_size = 7.0;
-		viewer.data().set_points(features, Eigen::RowVector3d(1.0, 1.0, 1.0));
+		viewer.data().set_points(mesh.vertices()(features.array(), Eigen::all), Eigen::RowVector3d(1.0, 1.0, 1.0));
 		viewer.launch();
 	}
 }
 
-void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::VectorXd& mean_curvature, const std::vector<ToothFeature>& toothFeatures, const std::vector<Eigen::DenseIndex>& boundaryIndices, Eigen::VectorXd& harmonic_field, double w)
+void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::VectorXd& mean_curvature, const std::vector<ToothFeature>& toothFeatures, const Eigen::VectorXi& cutIndices, Eigen::VectorXd& harmonic_field, double w, bool visualize_steps)
 {
+	// sort indices by constraint type
+	// tooth features
+	Eigen::VectorXi tooth_ft_indices;
+	Eigen::Index num_tooth_features = 0;
+	for (const auto& t : toothFeatures)
+		num_tooth_features += t.numFeaturePoints;
+	tooth_ft_indices.resize(num_tooth_features);
+	num_tooth_features = 0;
+	for (const auto& t : toothFeatures)
+		for (Eigen::Index i = 0; i < t.numFeaturePoints; ++i)
+			tooth_ft_indices(num_tooth_features++) = t.featurePointIndices[i];
+
+	// calculate laplacian matrix
+	Eigen::SparseMatrix<double> L(mesh.vertices().rows(), mesh.vertices().rows());
+	L.setZero();
+
+	
+
+
+	// calculate constraint matrix
+
+	// calculate b vector
+
+	// solve sparse system
+}
+
+void ToothSegmentation::cutMesh(Mesh& mesh, Eigen::VectorXi& cut_indices, Eigen::VectorXi& ivrs_index_map, const Eigen::Vector3d& normal, const Eigen::Vector3d& plane_point)
+{
+	std::vector<Eigen::RowVector3d> newvertices;
+	std::vector<Eigen::RowVector3i> newfaces;
+	std::vector<Eigen::DenseIndex> cutindices_old;
+
+	Eigen::VectorXi index_map(mesh.vertices().rows());
+	index_map.setConstant(-1);
+	
+	Eigen::VectorXd vertex_plane_distances = (mesh.vertices().rowwise() - plane_point.transpose()) * normal;
+
+	for (Eigen::DenseIndex f = 0; f < mesh.faces().rows(); ++f)
+	{
+		if (vertex_plane_distances(mesh.faces()(f, 0)) > 0.0 && vertex_plane_distances(mesh.faces()(f, 1)) > 0.0 && vertex_plane_distances(mesh.faces()(f, 2)) > 0.0)
+		{
+			Eigen::RowVector3i newface;
+			for (Eigen::DenseIndex i = 0; i < 3; ++i)
+			{
+				if (index_map(mesh.faces()(f, i)) == -1) // if vertex is not yet in new set, add it and put the correponding index into index map
+				{
+					newvertices.push_back(mesh.vertices()(mesh.faces()(f, i), Eigen::all));
+					index_map(mesh.faces()(f, i)) = newvertices.size() - 1;
+					newface(i) = newvertices.size() - 1;
+				}
+				else // append existing new index to face
+				{
+					newface(i) = index_map(mesh.faces()(f, i));
+				}
+			}
+			newfaces.push_back(newface);
+		}
+		else
+		{
+			if (vertex_plane_distances(mesh.faces()(f, 0)) > 0.0)
+			{
+				cutindices_old.push_back(mesh.faces()(f, 0));
+			}
+			if (vertex_plane_distances(mesh.faces()(f, 1)) > 0.0)
+			{
+				cutindices_old.push_back(mesh.faces()(f, 1));
+			}
+			if (vertex_plane_distances(mesh.faces()(f, 2)) > 0.0)
+			{
+				cutindices_old.push_back(mesh.faces()(f, 2));
+			}
+		}		
+	}
+
+	Eigen::MatrixXd Vnew(newvertices.size(), 3);
+	for (std::size_t i = 0; i < newvertices.size(); ++i)
+		Vnew(i, Eigen::all) = newvertices[i];
+
+	Eigen::MatrixXi Fnew(newfaces.size(), 3);
+	for (std::size_t i = 0; i < newfaces.size(); ++i)
+		Fnew(i, Eigen::all) = newfaces[i];
+
+	Eigen::MatrixXd Nnew;
+	igl::per_vertex_normals(Vnew, Fnew, Nnew);
+
+	mesh = Mesh(Vnew, Nnew, Fnew);
+
+	Eigen::DenseIndex num_cut_indices = 0;
+	for (Eigen::DenseIndex i = 0; i < cutindices_old.size(); ++i)
+		if (index_map(cutindices_old[i]) != -1)
+			num_cut_indices++;
+
+	cut_indices.resize(num_cut_indices);
+	num_cut_indices = 0;
+	for (Eigen::DenseIndex i = 0; i < cutindices_old.size(); ++i)
+		if (index_map(cutindices_old[i]) != -1)
+			cut_indices[num_cut_indices++] = index_map(cutindices_old[i]);
+
+	// construct inverse index map (for handling old arrays defined over the mesh)
+	Eigen::DenseIndex ivrsidxct = 0;
+	ivrs_index_map.resize(Vnew.rows());
+	for (Eigen::DenseIndex i = 0; i < index_map.rows(); ++i)
+		if(index_map(i) != -1)
+			ivrs_index_map(index_map(i)) = i;
 }
