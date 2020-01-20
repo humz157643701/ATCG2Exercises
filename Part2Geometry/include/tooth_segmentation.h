@@ -41,6 +41,12 @@ public:
 		double ms_ft_collapse_dist;
 	};
 
+	struct ToothFeature
+	{
+		Eigen::DenseIndex featurePointIndices[4];
+		Eigen::DenseIndex numFeaturePoints;
+	};
+
 	static void segmentTeethFromMesh(const Mesh& mesh,
 		const Eigen::Vector3d& mesh_up,
 		const Eigen::Vector3d& mesh_right,
@@ -50,7 +56,9 @@ public:
 		);
 
 private:
-	static void computeCusps(const Mesh& mesh, Eigen::MatrixXd& features, const CuspDetectionParams& cuspd_params, bool visualize_steps = false);
+	static void computeCusps(const Mesh& mesh, Eigen::MatrixXd& features, Eigen::VectorXd& mean_curvature, const CuspDetectionParams& cuspd_params, bool visualize_steps = false);
+	static void calculateHarmonicField(const Mesh& mesh, const Eigen::VectorXd& mean_curvature, const std::vector<ToothFeature>& toothFeatures, const std::vector<Eigen::DenseIndex>& boundaryIndices, Eigen::VectorXd& harmonic_field, double w = 1000.0);
+
 };
 
 

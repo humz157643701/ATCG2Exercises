@@ -32,22 +32,21 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 	}
 
 	// compute cusp features
+	Eigen::VectorXd mean_curvature;
 	std::cout << "-- Computing cusp features...\n";
 	Eigen::MatrixXd cusps;
-	computeCusps(working_mesh, cusps, cuspd_params, true);
+	computeCusps(working_mesh, cusps, mean_curvature, cuspd_params, true);
 
-	// fit plane
-
-	// cut teeth
-
-	// fit curve
+	/////////////////////////////////////////////////////////
+	/// SPOKE FEATURE STUFF AND AUTOMATIC GINGIVA CUTTING ///
+	/////////////////////////////////////////////////////////
 
 	// assign features to teeth
 
 	// harmonic field stuff
 }
 
-void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::MatrixXd& features, const ToothSegmentation::CuspDetectionParams& cuspd_params, bool visualize_steps)
+void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::MatrixXd& features, Eigen::VectorXd& mean_curvature, const ToothSegmentation::CuspDetectionParams& cuspd_params, bool visualize_steps)
 {
 	// calculate mean curvature
 	std::cout << "- Calculating mean curvature...\n";
@@ -89,6 +88,8 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::MatrixXd& features
 
 	// calculate signed mean curvatures
 	Eigen::VectorXd mean_curvatures = ((mean_curvature_normals.array() * smoothed_normals.array()).matrix().rowwise().sum().array()).matrix();
+	mean_curvature.resize(mean_curvatures.rows());
+	mean_curvature = mean_curvatures;
 
 	// remove outliers
 	double mean_mean_curvature = mean_curvatures(active_indices.array()).mean();
@@ -350,4 +351,8 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::MatrixXd& features
 		viewer.data().set_points(features, Eigen::RowVector3d(1.0, 1.0, 1.0));
 		viewer.launch();
 	}
+}
+
+void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::VectorXd& mean_curvature, const std::vector<ToothFeature>& toothFeatures, const std::vector<Eigen::DenseIndex>& boundaryIndices, Eigen::VectorXd& harmonic_field, double w)
+{
 }

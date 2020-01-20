@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
 		Eigen::MatrixXi F1;
 		Eigen::MatrixXd N1;
 		std::cout << "--- Loading meshes...\n";
-		std::string model = "assets/models/RD-01/16021_OnyxCeph3_Export_OK-A.obj";
+		std::string model = "assets/models/RD-04/14645_OnyxCeph3_Export_OK-A.obj";
 		igl::readOBJ(model, V1, F1);
 		igl::per_vertex_normals(V1, F1, N1);
 		Mesh original(V1, N1, F1);
