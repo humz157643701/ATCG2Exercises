@@ -70,8 +70,11 @@ public:
 		spokes.reserve(100);
 		std::vector<Eigen::Vector3d> curvepoints;
 		double fpymax = features.colwise().maxCoeff()(1);
+		double verticesminy = mesh.vertices().colwise().minCoeff()(1);
+		std::cout << "verticesminy: " << verticesminy << std::endl;
+		double stepsize = std::abs(verticesminy - curvey) / 200.0;
 		std::cout << "fpymax: " << fpymax << std::endl;
-		for (double x = min_x; x <= max_x; x += (max_x - min_x) / 100.0)
+		for (double x = min_x+(max_x-min_x)/25; x <= max_x- (max_x - min_x) / 25; x += (max_x - min_x) / 100.0)
 		{
 			
 			double z = curveparams(0, 0) * std::pow(x, 4) + curveparams(1, 0) * std::pow(x, 3) + curveparams(2, 0) * std::pow(x, 2) + curveparams(3, 0) *std::pow(x, 1) + curveparams(4, 0);
@@ -98,36 +101,40 @@ public:
 		std::vector<std::vector<double>> depths;
 		depths.reserve(100);
 		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> finalspokes;
-		double verticesminy = mesh.vertices().colwise().minCoeff()(1);
-		std::cout << "verticesminy: " << verticesminy << std::endl;
-		double stepsize = std::abs(verticesminy - curvey) / 500.0;
+
 		std::cout << "stepsize: " << stepsize << std::endl;
-		for (size_t outer = 50; outer < spokes.size(); outer+=1)
+		for (size_t outer = 0; outer < spokes.size(); outer+=1)
 		{
 			double minspokey = std::numeric_limits<double>::max();
-			size_t minspokeIdx = 0;
+			long minspokeIdx = -1;
 			for (size_t inner = 0; inner < spokes[outer].size(); inner++)
 			{
 				double maxy = std::numeric_limits<double>::lowest();
+				Eigen::Vector3d loc = spokes[outer][inner].second;
 				for (double x = -1; x <= 1; x += 0.1)
 				{
-					Eigen::Vector3d pos = spokes[outer][inner].second + (spokes[outer][inner].first * x * 5);
+					Eigen::Vector3d pos = loc + (spokes[outer][inner].first * x * 5);
 					//Let's go down step by step in negative y direction until we find a close vertice
 					std::vector<std::pair<Eigen::Index, double>> srchres;
 					for (double y = pos(1); y >= verticesminy; y -= stepsize)
 					{
-						auto neighbor = mesh.kdtree().index->radiusSearch(pos.data(), stepsize*stepsize, srchres, {});
+						auto neighbor = mesh.kdtree().index->radiusSearch(pos.data(), stepsize* stepsize, srchres, {});
 						if (srchres.size() > 0)
 						{
-							std::cout << " srchres size: " << srchres.size() << "y: " << y<<  std::endl;
 							auto r = mesh.vertices()(srchres.front().first, 1);
+							//std::cout << " srchres size: " << srchres.size() << "y: " << pos << " id: "<<spokes[outer][inner].second<< std::endl;
+
 							if (r > maxy)
 							{
 								maxy = r;
 								spokes[outer][inner].second(1) = r;
+								//curvepoints.push_back(mesh.vertices().row(srchres.front().first));
+							//	curvepoints.push_back(pos);
 							}
 							break;
 						}
+
+						pos(1) -= stepsize;
 					}
 				}
 				if (maxy < minspokey)
@@ -136,10 +143,18 @@ public:
 					minspokeIdx = inner;
 				}
 			}
-			finalspokes.push_back({ spokes[outer][minspokeIdx] });
+			if (minspokeIdx != -1)
+			{
+				finalspokes.push_back({ spokes[outer][minspokeIdx] });
+			}
+			else
+			{
+				std::cout << "spoke unsolved: " << outer << std::endl;
+			}
 		}
 		Eigen::MatrixXd spokepoints(20*finalspokes.size()+1, 3);
-		for (size_t outer = 0; outer < finalspokes.size(); outer += 5)
+		spokepoints.fill(0);
+		for (size_t outer = 0; outer < finalspokes.size(); outer += 1)
 		{
 			int x1 = 0;
 			for (double x = -1; x <= 1; x += 0.1)
@@ -150,7 +165,7 @@ public:
 			}
 		}
 		// Remove spokes which have no feature points in between one another
-
+		// FOr every 2 spokes, check on what side each feature point is, in relation to those 2 spokes. 
 
 		std::vector<Eigen::MatrixXd> results;
 		results.push_back(Eigen::MatrixXd{ curvepoints.size(), 3 });
