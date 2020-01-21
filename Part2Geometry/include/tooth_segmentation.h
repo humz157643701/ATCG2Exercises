@@ -76,6 +76,7 @@ private:
 		const Eigen::Vector3d& normal,
 		const Eigen::Vector3d& plane_point);
 	static double calcCotanWeight(const Eigen::Index& i, const Eigen::Index& j, const Mesh& mesh);
+	static double calcCurvatureWeight(const Eigen::VectorXd& mean_curvature, const Eigen::Index& i, const Eigen::Index& j);
 
 };
 

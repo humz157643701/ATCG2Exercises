@@ -64,7 +64,7 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 		{{index_map(6753), index_map(158652), index_map(0), index_map(0)}, 2},
 		{{index_map(158728), index_map(160864), index_map(0), index_map(0)}, 2},
 		{{index_map(2179), index_map(2224), index_map(0), index_map(0)}, 2},
-		{{index_map(5775), index_map(160101), index_map(0), index_map(0)}, 2},
+		//{{index_map(5775), index_map(160101), index_map(0), index_map(0)}, 2},
 		{{index_map(155337), index_map(4017), index_map(5812), index_map(8910)}, 4},
 		{{index_map(16741), index_map(174894), index_map(160439), index_map(170818)}, 4},
 	};
@@ -432,13 +432,12 @@ void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::Ve
 		num_tooth_features += t.numFeaturePoints;
 
 	// calculate laplacian matrix
-	Eigen::SparseMatrix<double> L(mesh.vertices().rows() + cutIndices.rows() + num_tooth_features, mesh.vertices().rows());
+	Eigen::SparseMatrix<double> L(mesh.vertices().rows(), mesh.vertices().rows());
 	L.setZero();
-	Eigen::VectorXd b(mesh.vertices().rows() + cutIndices.rows() + num_tooth_features);	
+	Eigen::VectorXd b(mesh.vertices().rows());	
 	b.setZero();
 
 	std::vector<Eigen::Triplet<double>> Ltripls;
-	std::vector<Eigen::Triplet<double>> Btripls;
 
 	for (Eigen::Index i = 0; i < mesh.vertices().rows(); ++i)
 	{
@@ -449,7 +448,7 @@ void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::Ve
 		{
 			Eigen::Index j = mesh.adjacency_list()[i][a];			
 			//L.coeffRef(i, j) = -calcCotanWeight(i, j, mesh);
-			double cotij = calcCotanWeight(i, j, mesh);
+			double cotij = calcCotanWeight(i, j, mesh);// *calcCurvatureWeight(i, j, mean_curvature);
 			Ltripls.push_back(Eigen::Triplet<double>(i, j, -cotij));
 			iweight += cotij;
 		}
@@ -459,6 +458,12 @@ void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::Ve
 	std::cout << "Num vertices: " << mesh.vertices().rows() << "\n";
 
 	L.setFromTriplets(Ltripls.begin(), Ltripls.end());
+
+	// mass matrix
+	Eigen::SparseMatrix<double> M, Minv;
+	igl::massmatrix(mesh.vertices(), mesh.faces(), igl::MASSMATRIX_TYPE_VORONOI, M);
+	igl::invert_diag(M, Minv);
+	L = Minv * L;
 
 	/*std::cout << "Setting diagonals...\n";
 
@@ -475,46 +480,29 @@ void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::Ve
 	// calculate constraint matrix and b values
 	// tooth features
 	std::cout << "Tooth features...\n";
-	Eigen::Index ti = 0;
 	for (Eigen::Index t = 0; t < toothFeatures.size(); ++t)
 	{
 		for (Eigen::Index i = 0; i < toothFeatures[t].numFeaturePoints; ++i)
 		{
-			Ltripls.push_back(Eigen::Triplet<double>(mesh.vertices().rows() + ti, toothFeatures[t].featurePointIndices[i], w));
-			b(mesh.vertices().rows() + ti) = ((t % 2 == 0) ? 0.0 : w);
-			++ti;
-			//std::cout << (static_cast<double>(ti) / num_tooth_features) * 100.0 << "%\n";
+			L.row(toothFeatures[t].featurePointIndices[i]) *= 0.0;
+			L.coeffRef(toothFeatures[t].featurePointIndices[i], toothFeatures[t].featurePointIndices[i]) = 1.0;
+			b(toothFeatures[t].featurePointIndices[i]) = ((t % 2 == 0) ? 0.0 : 1.0);// w);
 		}
 	}
-
-	std::cout << "L non-zero entries: " << Ltripls.size() << "\n";
 
 	// cut boundary vertices
 	std::cout << "Cut boundary...\n";
 	for (Eigen::Index i = 0; i < cutIndices.rows(); ++i)
 	{
-		Ltripls.push_back(Eigen::Triplet<double>(mesh.vertices().rows() + num_tooth_features + i, cutIndices(i), w));
-		b(mesh.vertices().rows() + num_tooth_features + i) = 0.5 * w;
-		/*if(i % 100 == 0)
-			std::cout << (static_cast<double>(i) / cutIndices.rows()) * 100.0 << "%\n";*/
+		L.row(cutIndices(i)) *= 0.0;
+		L.coeffRef(cutIndices(i), cutIndices(i)) = 1.0;
+		b(cutIndices(i)) = 0.5;// *w;
 	}
-
-	std::cout << "L non-zero entries: " << Ltripls.size() << "\n";
-
-	L.setFromTriplets(Ltripls.begin(), Ltripls.end());
-
-	//// mass matrix
-	//Eigen::SparseMatrix<double> M, Minv;
-	//igl::massmatrix(mesh.vertices(), mesh.faces(), igl::MASSMATRIX_TYPE_VORONOI, M);
-	//igl::invert_diag(M, Minv);
-
-	//std::cout << "Mass matrix stuff\n";
-	//L.block(0, 0, mesh.vertices().rows(), mesh.vertices().rows()) = Minv * L.block(0, 0, mesh.vertices().rows(), mesh.vertices().rows());
 
 	// solve sparse system
 	std::cout << "Solving linear system...\n";
 	//Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver;
-	Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double>> solver;
+	Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
 	solver.compute(L);
 	if (solver.info() != Eigen::Success)
 	{
@@ -641,13 +629,15 @@ double ToothSegmentation::calcCotanWeight(const Eigen::Index & i, const Eigen::I
 				}
 			}
 		}
-		if (!std::isnan(res))
-			return res / 2.0;
-		else
-			return 0.0;
+		return res / 2.0;
 	}
 	else
 	{
 		return 0.0;
 	}
+}
+
+double ToothSegmentation::calcCurvatureWeight(const Eigen::VectorXd& mean_curvature, const Eigen::Index& i, const Eigen::Index& j)
+{
+	return 0.0;
 }
