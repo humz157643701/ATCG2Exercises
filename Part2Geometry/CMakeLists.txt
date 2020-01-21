@@ -18,12 +18,14 @@ list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/planefitter.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/curvefitter.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/mesh_saliency.h")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/mesh.h")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/tooth_segmentation.h")
 
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/icp.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/Octree.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/mesh.cpp")
 list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/mesh_saliency.cpp")
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/tooth_segmentation.cpp")
 
 ##--------------------------------build source groups for visual studio-------------------------------------------------
 
