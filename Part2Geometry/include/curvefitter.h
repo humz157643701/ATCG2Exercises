@@ -99,9 +99,9 @@ public:
 		depths.reserve(100);
 		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> finalspokes;
 		double verticesminy = mesh.vertices().colwise().minCoeff()(1);
-		std::cout << "verticesminy: " << fpymax << std::endl;
+		std::cout << "verticesminy: " << verticesminy << std::endl;
 		double stepsize = std::abs(verticesminy - curvey) / 500.0;
-		std::cout << "stepsize: " << fpymax << std::endl;
+		std::cout << "stepsize: " << stepsize << std::endl;
 		for (size_t outer = 50; outer < spokes.size(); outer+=1)
 		{
 			double minspokey = std::numeric_limits<double>::max();
@@ -124,6 +124,7 @@ public:
 							if (r > maxy)
 							{
 								maxy = r;
+								spokes[outer][inner].second(1) = r;
 							}
 							break;
 						}

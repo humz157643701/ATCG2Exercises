@@ -36,8 +36,6 @@ Plane createPlane(Eigen::Vector3d &normal, Eigen::Vector3d& trans, Eigen::RowVec
 	planeV1.rowwise() += (trans.dot(normal) * normal).transpose();
 	return { planeV1, planeF1, planeC };
 }
-#include <tooth_segmentation.h>
-#include <cmath>
 
 int main(int argc, char* argv[])
 {
@@ -47,7 +45,7 @@ int main(int argc, char* argv[])
 		Eigen::MatrixXi F1;
 		Eigen::MatrixXd N1;
 		std::cout << "--- Loading meshes...\n";
-		std::string model = "assets/models/RD-04/14645_OnyxCeph3_Export_OK-A.obj";
+		std::string model = "assets/models/RD-01/16021_OnyxCeph3_Export_OK-A.obj";
 		igl::readOBJ(model, V1, F1);
 		igl::per_vertex_normals(V1, F1, N1);
 		// build mesh
