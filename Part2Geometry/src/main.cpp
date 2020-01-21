@@ -156,8 +156,8 @@ int main(int argc, char* argv[])
 		viewer2.data(m2).set_colors(plane.Cs);// Eigen::RowVector3d(1, 0, 1));
 		viewer2.data().add_points(features, Eigen::RowVector3d(1, 0, 0));
 		viewer2.data().add_points(*res.begin(), Eigen::RowVector3d(0, 1, 0));
-		viewer2.data().add_points(res.back(), Eigen::RowVector3d(1, 1, 0));
-		viewer2.data().point_size = 15;
+		viewer2.data().add_points(res.back(), Eigen::RowVector3d(0, 1, 1));
+		viewer2.data().point_size = 10;
 		//for (size_t x = 0; x < res.size() / 20; x += 20)
 		//{
 			//viewer2.data().add_edges(res[0], res[1], Eigen::RowVector3d(0, 1, 0));
