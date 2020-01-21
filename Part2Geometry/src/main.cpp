@@ -57,28 +57,28 @@ int main(int argc, char* argv[])
 
 
 
-		std::vector<Mesh> teeth;
-		ToothSegmentation::segmentTeethFromMesh(original,
-			Eigen::Vector3d{ 0.0, -1.0, 0.0 },
-			Eigen::Vector3d{ -1.0, 0.0, 0.0 },
-			teeth,
-			ToothSegmentation::CuspDetectionParams{
-				0.5, // curvature <-> height
-				0.8, // curvature exponent
-				0.9, // height exponent
-				0.5, // min feature height
-				0.0003, // smoothing step size
-				50, // smoothing steps
-				2.0, // max zscore
-				0.5, // fraction of local maxima to be considered for mean shift
-				0.012, // mean shift window size
-				1e-4, // min total shift before convergence
-				1000, // max mean shift iterations
-				0.03 // feature collapse distance
-			},
-			1000.0,
-			true
-			);
+		//std::vector<Mesh> teeth;
+		//ToothSegmentation::segmentTeethFromMesh(original,
+		//	Eigen::Vector3d{ 0.0, -1.0, 0.0 },
+		//	Eigen::Vector3d{ -1.0, 0.0, 0.0 },
+		//	teeth,
+		//	ToothSegmentation::CuspDetectionParams{
+		//		0.5, // curvature <-> height
+		//		0.8, // curvature exponent
+		//		0.9, // height exponent
+		//		0.5, // min feature height
+		//		0.0003, // smoothing step size
+		//		50, // smoothing steps
+		//		2.0, // max zscore
+		//		0.5, // fraction of local maxima to be considered for mean shift
+		//		0.012, // mean shift window size
+		//		1e-4, // min total shift before convergence
+		//		1000, // max mean shift iterations
+		//		0.03 // feature collapse distance
+		//	},
+		//	1000.0,
+		//	true
+		//	);
 
 
 
@@ -166,30 +166,30 @@ int main(int argc, char* argv[])
 		//}
 		viewer2.launch();
 
-		//Task2
-		{
-		
+		////Task2
+		//{
+		//
 
-		std::cout << "--- building voxel data structures...\n";
-		//teeth factor 0.310623
-		// head factor 0.001771
-		MeshSamplers::IntegralInvariantSignaturesSampler integralsampler{ vxm,0.310623, 0.02, true };
+		//std::cout << "--- building voxel data structures...\n";
+		////teeth factor 0.310623
+		//// head factor 0.001771
+		//MeshSamplers::IntegralInvariantSignaturesSampler integralsampler{ vxm,0.310623, 0.02, true };
 
 
-		/////// MESH SALIENCY TEST STUFF /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		///////// MESH SALIENCY TEST STUFF /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		Eigen::Vector3d origvec = { 1,1,0.3 };
+		//Eigen::Vector3d origvec = { 1,1,0.3 };
 
-		SymmetryDetector<MeshSamplers::MeshSaliencySampler> symmd(ICPParams{ (mesh.vertices().colwise().maxCoeff() - mesh.vertices().colwise().minCoeff()).norm() * 0.3, 0.4, 1e-2, 1e-4, 150 }, MeshSamplers::MeshSaliencySampler(0.0010, 1, 5, false, 0.0085, ScaleType::DOUBLE_SIGMA_EVERY_SCALE, true));
-		auto res = symmd.findMainSymmetryPlane(mesh, origvec.normalized());
+		//SymmetryDetector<MeshSamplers::MeshSaliencySampler> symmd(ICPParams{ (mesh.vertices().colwise().maxCoeff() - mesh.vertices().colwise().minCoeff()).norm() * 0.3, 0.4, 1e-2, 1e-4, 150 }, MeshSamplers::MeshSaliencySampler(0.0010, 1, 5, false, 0.0085, ScaleType::DOUBLE_SIGMA_EVERY_SCALE, true));
+		//auto res = symmd.findMainSymmetryPlane(mesh, origvec.normalized());
 
-		std::cout << "############################# MeshSaliencySampler Symmetry found! ###############################\n";
-		std::cout << "Prefiltering: " << res.time_for_prefiltering << "s\n";
-		std::cout << "ICP alignment: " << res.time_for_alignment << "s\n";
-		std::cout << "Symmetry plane calculation: " << res.time_for_sym_calculation << "s\n";
-		std::cout << "Time total: " << res.time_total << "s\n";
+		//std::cout << "############################# MeshSaliencySampler Symmetry found! ###############################\n";
+		//std::cout << "Prefiltering: " << res.time_for_prefiltering << "s\n";
+		//std::cout << "ICP alignment: " << res.time_for_alignment << "s\n";
+		//std::cout << "Symmetry plane calculation: " << res.time_for_sym_calculation << "s\n";
+		//std::cout << "Time total: " << res.time_total << "s\n";
 
 		{
 			//Eigen::MatrixXd V2(V1);
@@ -271,118 +271,118 @@ int main(int argc, char* argv[])
 
 			//auto planeRes3 = createPlane(res2.normal);
 		}
-		Eigen::MatrixXd C1(V1.rows(), 3);
-		Eigen::MatrixXd C2(V1.rows(), 3);
-		C1 << Eigen::RowVector3d(1.0, 1.0, 1.0).replicate(V1.rows(), 1);
-		C2 << Eigen::RowVector3d(1.0, 0.0, 1.0).replicate(V1.rows(), 1);
-		auto pl_res = createPlane(res.normal, res.center, { 0,1,0 });
-		Eigen::Vector3d center_of_mass{ V1.colwise().mean().transpose() };
-		auto pl_init = createPlane(origvec, center_of_mass, { 1,1,0 });
+		//Eigen::MatrixXd C1(V1.rows(), 3);
+		//Eigen::MatrixXd C2(V1.rows(), 3);
+		//C1 << Eigen::RowVector3d(1.0, 1.0, 1.0).replicate(V1.rows(), 1);
+		//C2 << Eigen::RowVector3d(1.0, 0.0, 1.0).replicate(V1.rows(), 1);
+		//auto pl_res = createPlane(res.normal, res.center, { 0,1,0 });
+		//Eigen::Vector3d center_of_mass{ V1.colwise().mean().transpose() };
+		//auto pl_init = createPlane(origvec, center_of_mass, { 1,1,0 });
 
-		// Plot the mesh
-		igl::opengl::glfw::Viewer viewer2;
+		//// Plot the mesh
+		//igl::opengl::glfw::Viewer viewer2;
+		////auto m3 = viewer2.append_mesh();
+		//auto m1 = viewer2.append_mesh();
+		//auto m2 = viewer2.append_mesh();
 		//auto m3 = viewer2.append_mesh();
-		auto m1 = viewer2.append_mesh();
-		auto m2 = viewer2.append_mesh();
-		auto m3 = viewer2.append_mesh();
-		auto m4 = viewer2.append_mesh();
+		//auto m4 = viewer2.append_mesh();
 
-		viewer2.data(m1).set_mesh(V1, F1);
-		viewer2.data(m1).set_colors(C1);
-		Eigen::MatrixXd reflV1(V1);
-		//std::cout << "#############################\n Symm Result -\n normal: \n" << res.normal << "\n center: \n" << res.center << "\n  " << "\n#############################\n";
+		//viewer2.data(m1).set_mesh(V1, F1);
+		//viewer2.data(m1).set_colors(C1);
+		//Eigen::MatrixXd reflV1(V1);
+		////std::cout << "#############################\n Symm Result -\n normal: \n" << res.normal << "\n center: \n" << res.center << "\n  " << "\n#############################\n";
 
 
-		reflectAlongPlane(res, reflV1);
+		//reflectAlongPlane(res, reflV1);
 
-		viewer2.data(m2).set_mesh(reflV1, F1);
-		viewer2.data(m2).set_colors(C2);
-		viewer2.data(m3).set_mesh(pl_init.Vs, pl_init.Fs);
-		viewer2.data(m3).set_colors(pl_init.Cs);
-		viewer2.data(m4).set_mesh(pl_res.Vs, pl_res.Fs);
-		viewer2.data(m4).set_colors(pl_res.Cs);
-		viewer2.data().add_points(Eigen::RowVector3d(0, 0, 0), Eigen::RowVector3d(1, 0, 0));
-		viewer2.launch();
+		//viewer2.data(m2).set_mesh(reflV1, F1);
+		//viewer2.data(m2).set_colors(C2);
+		//viewer2.data(m3).set_mesh(pl_init.Vs, pl_init.Fs);
+		//viewer2.data(m3).set_colors(pl_init.Cs);
+		//viewer2.data(m4).set_mesh(pl_res.Vs, pl_res.Fs);
+		//viewer2.data(m4).set_colors(pl_res.Cs);
+		//viewer2.data().add_points(Eigen::RowVector3d(0, 0, 0), Eigen::RowVector3d(1, 0, 0));
+		//viewer2.launch();
 
-		SymmetryDetector<MeshSamplers::IntegralInvariantSignaturesSampler> symmd2(ICPParams{ (mesh.vertices().colwise().maxCoeff() - mesh.vertices().colwise().minCoeff()).norm() * 0.3, 0.4, 1e-2, 1e-4, 150 }, integralsampler);//0.310623 });
-		res = symmd2.findMainSymmetryPlane(mesh, origvec.normalized());
+		//SymmetryDetector<MeshSamplers::IntegralInvariantSignaturesSampler> symmd2(ICPParams{ (mesh.vertices().colwise().maxCoeff() - mesh.vertices().colwise().minCoeff()).norm() * 0.3, 0.4, 1e-2, 1e-4, 150 }, integralsampler);//0.310623 });
+		//res = symmd2.findMainSymmetryPlane(mesh, origvec.normalized());
 
-		std::cout << "############################# IntegralInvariantSignaturesSampler Symmetry found! ###############################\n";
-		std::cout << "Prefiltering: " << res.time_for_prefiltering << "s\n";
-		std::cout << "ICP alignment: " << res.time_for_alignment << "s\n";
-		std::cout << "Symmetry plane calculation: " << res.time_for_sym_calculation << "s\n";
-		std::cout << "Time total: " << res.time_total << "s\n";
+		//std::cout << "############################# IntegralInvariantSignaturesSampler Symmetry found! ###############################\n";
+		//std::cout << "Prefiltering: " << res.time_for_prefiltering << "s\n";
+		//std::cout << "ICP alignment: " << res.time_for_alignment << "s\n";
+		//std::cout << "Symmetry plane calculation: " << res.time_for_sym_calculation << "s\n";
+		//std::cout << "Time total: " << res.time_total << "s\n";
 
-		C1 = Eigen::MatrixXd(V1.rows(), 3);
-		C2 = Eigen::MatrixXd(V1.rows(), 3);
-		C1 << Eigen::RowVector3d(1.0, 1.0, 1.0).replicate(V1.rows(), 1);
-		C2 << Eigen::RowVector3d(1.0, 0.0, 1.0).replicate(V1.rows(), 1);
-		pl_res = createPlane(res.normal, res.center, { 0,1,0 });
-		center_of_mass = Eigen::Vector3d{ V1.colwise().mean().transpose() };
-		pl_init = createPlane(origvec, center_of_mass, { 1,1,0 });
+		//C1 = Eigen::MatrixXd(V1.rows(), 3);
+		//C2 = Eigen::MatrixXd(V1.rows(), 3);
+		//C1 << Eigen::RowVector3d(1.0, 1.0, 1.0).replicate(V1.rows(), 1);
+		//C2 << Eigen::RowVector3d(1.0, 0.0, 1.0).replicate(V1.rows(), 1);
+		//pl_res = createPlane(res.normal, res.center, { 0,1,0 });
+		//center_of_mass = Eigen::Vector3d{ V1.colwise().mean().transpose() };
+		//pl_init = createPlane(origvec, center_of_mass, { 1,1,0 });
 
-		// Plot the mesh
-		viewer2 = igl::opengl::glfw::Viewer();
-		//auto m3 = viewer2.append_mesh();
-		m1 = viewer2.append_mesh();
-		m2 = viewer2.append_mesh();
-		m3 = viewer2.append_mesh();
-		m4 = viewer2.append_mesh();
+		//// Plot the mesh
+		//viewer2 = igl::opengl::glfw::Viewer();
+		////auto m3 = viewer2.append_mesh();
+		//m1 = viewer2.append_mesh();
+		//m2 = viewer2.append_mesh();
+		//m3 = viewer2.append_mesh();
+		//m4 = viewer2.append_mesh();
 
-		viewer2.data(m1).set_mesh(V1, F1);
-		viewer2.data(m1).set_colors(C1);
-		reflV1 = Eigen::MatrixXd(V1);
+		//viewer2.data(m1).set_mesh(V1, F1);
+		//viewer2.data(m1).set_colors(C1);
+		//reflV1 = Eigen::MatrixXd(V1);
 
-		reflectAlongPlane(res, reflV1);
+		//reflectAlongPlane(res, reflV1);
 
-		viewer2.data(m2).set_mesh(reflV1, F1);
-		viewer2.data(m2).set_colors(C2);
-		viewer2.data(m3).set_mesh(pl_init.Vs, pl_init.Fs);
-		viewer2.data(m3).set_colors(pl_init.Cs);
-		viewer2.data(m4).set_mesh(pl_res.Vs, pl_res.Fs);
-		viewer2.data(m4).set_colors(pl_res.Cs);
-		viewer2.data().add_points(Eigen::RowVector3d(0, 0, 0), Eigen::RowVector3d(1, 0, 0));
-		viewer2.launch();
+		//viewer2.data(m2).set_mesh(reflV1, F1);
+		//viewer2.data(m2).set_colors(C2);
+		//viewer2.data(m3).set_mesh(pl_init.Vs, pl_init.Fs);
+		//viewer2.data(m3).set_colors(pl_init.Cs);
+		//viewer2.data(m4).set_mesh(pl_res.Vs, pl_res.Fs);
+		//viewer2.data(m4).set_colors(pl_res.Cs);
+		//viewer2.data().add_points(Eigen::RowVector3d(0, 0, 0), Eigen::RowVector3d(1, 0, 0));
+		//viewer2.launch();
 
-		SymmetryDetector<MeshSamplers::PassthroughSampler> symmd3(ICPParams{ (mesh.vertices().colwise().maxCoeff() - mesh.vertices().colwise().minCoeff()).norm() * 0.3, 0.4, 1e-2, 1e-4, 150 }, {});//0.310623 });
-		res = symmd3.findMainSymmetryPlane(mesh, origvec.normalized());
+		//SymmetryDetector<MeshSamplers::PassthroughSampler> symmd3(ICPParams{ (mesh.vertices().colwise().maxCoeff() - mesh.vertices().colwise().minCoeff()).norm() * 0.3, 0.4, 1e-2, 1e-4, 150 }, {});//0.310623 });
+		//res = symmd3.findMainSymmetryPlane(mesh, origvec.normalized());
 
-		std::cout << "############################# PassThroughSampler Symmetry found! ###############################\n";
-		std::cout << "Prefiltering: " << res.time_for_prefiltering << "s\n";
-		std::cout << "ICP alignment: " << res.time_for_alignment << "s\n";
-		std::cout << "Symmetry plane calculation: " << res.time_for_sym_calculation << "s\n";
-		std::cout << "Time total: " << res.time_total << "s\n";
+		//std::cout << "############################# PassThroughSampler Symmetry found! ###############################\n";
+		//std::cout << "Prefiltering: " << res.time_for_prefiltering << "s\n";
+		//std::cout << "ICP alignment: " << res.time_for_alignment << "s\n";
+		//std::cout << "Symmetry plane calculation: " << res.time_for_sym_calculation << "s\n";
+		//std::cout << "Time total: " << res.time_total << "s\n";
 
-		C1 = Eigen::MatrixXd(V1.rows(), 3);
-		C2 = Eigen::MatrixXd(V1.rows(), 3);
-		C1 << Eigen::RowVector3d(1.0, 1.0, 1.0).replicate(V1.rows(), 1);
-		C2 << Eigen::RowVector3d(1.0, 0.0, 1.0).replicate(V1.rows(), 1);
-		pl_res = createPlane(res.normal, res.center, { 0,1,0 });
-		center_of_mass = Eigen::Vector3d{ V1.colwise().mean().transpose() };
-		pl_init = createPlane(origvec, center_of_mass, { 1,1,0 });
+		//C1 = Eigen::MatrixXd(V1.rows(), 3);
+		//C2 = Eigen::MatrixXd(V1.rows(), 3);
+		//C1 << Eigen::RowVector3d(1.0, 1.0, 1.0).replicate(V1.rows(), 1);
+		//C2 << Eigen::RowVector3d(1.0, 0.0, 1.0).replicate(V1.rows(), 1);
+		//pl_res = createPlane(res.normal, res.center, { 0,1,0 });
+		//center_of_mass = Eigen::Vector3d{ V1.colwise().mean().transpose() };
+		//pl_init = createPlane(origvec, center_of_mass, { 1,1,0 });
 
-		// Plot the mesh
-		viewer2 = igl::opengl::glfw::Viewer();
-		//auto m3 = viewer2.append_mesh();
-		m1 = viewer2.append_mesh();
-		m2 = viewer2.append_mesh();
-		m3 = viewer2.append_mesh();
-		m4 = viewer2.append_mesh();
+		//// Plot the mesh
+		//viewer2 = igl::opengl::glfw::Viewer();
+		////auto m3 = viewer2.append_mesh();
+		//m1 = viewer2.append_mesh();
+		//m2 = viewer2.append_mesh();
+		//m3 = viewer2.append_mesh();
+		//m4 = viewer2.append_mesh();
 
-		viewer2.data(m1).set_mesh(V1, F1);
-		viewer2.data(m1).set_colors(C1);
-		reflV1 = Eigen::MatrixXd(V1);
+		//viewer2.data(m1).set_mesh(V1, F1);
+		//viewer2.data(m1).set_colors(C1);
+		//reflV1 = Eigen::MatrixXd(V1);
 
-		reflectAlongPlane(res, reflV1);
+		//reflectAlongPlane(res, reflV1);
 
-		viewer2.data(m2).set_mesh(reflV1, F1);
-		viewer2.data(m2).set_colors(C2);
-		viewer2.data(m3).set_mesh(pl_init.Vs, pl_init.Fs);
-		viewer2.data(m3).set_colors(pl_init.Cs);
-		viewer2.data(m4).set_mesh(pl_res.Vs, pl_res.Fs);
-		viewer2.data(m4).set_colors(pl_res.Cs);
-		viewer2.data().add_points(Eigen::RowVector3d(0, 0, 0), Eigen::RowVector3d(1, 0, 0));
-		viewer2.launch();
+		//viewer2.data(m2).set_mesh(reflV1, F1);
+		//viewer2.data(m2).set_colors(C2);
+		//viewer2.data(m3).set_mesh(pl_init.Vs, pl_init.Fs);
+		//viewer2.data(m3).set_colors(pl_init.Cs);
+		//viewer2.data(m4).set_mesh(pl_res.Vs, pl_res.Fs);
+		//viewer2.data(m4).set_colors(pl_res.Cs);
+		//viewer2.data().add_points(Eigen::RowVector3d(0, 0, 0), Eigen::RowVector3d(1, 0, 0));
+		//viewer2.launch();
 	}
 	catch (const std::exception& ex)
 	{
