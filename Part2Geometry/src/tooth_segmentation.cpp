@@ -50,6 +50,53 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 	/////////////////////////////////////////////////////////
 
 	// assign features to teeth
+	std::vector<size_t> fpoints{ 228824,
+									20453,
+
+									9335  ,
+									158157,
+									165224,
+									163144,
+
+									3653  ,
+									155934,
+
+									154708,
+									465	  ,
+
+									157325,
+									4649  ,
+
+									156244,
+									1727  ,
+
+									154437,
+									154323,
+
+									154374,
+									281	  ,
+
+									6753  ,
+									158652,
+
+									158728,
+									160864,
+
+									2179  ,
+									2224  ,
+
+									5775  ,
+									160101,
+
+									155337,
+									4017  ,
+									5812  ,
+									8910  ,
+
+									16741 ,
+									174894,
+									160439,
+									170818 };
 
 	//// harmonic field stuff
 	std::cout << "Solving harmonic field...\n";

@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
 		igl::per_vertex_normals(V1, F1, N1);
 		// build mesh
 		std::cout << "--- Building mesh data structure...\n";
-		Mesh original(V1, N1, F1);
+		Mesh mesh(V1, N1, F1);
 
 
 
@@ -83,8 +83,8 @@ int main(int argc, char* argv[])
 
 
 
-		V1 *= Eigen::MatrixXd(Eigen::AngleAxis<double>(M_PI, Eigen::Vector3d{ 0,0,1 }).toRotationMatrix());
-		Mesh mesh(V1, N1, F1);
+		/*V1 *= Eigen::MatrixXd(Eigen::AngleAxis<double>(M_PI, Eigen::Vector3d{ 0,0,1 }).toRotationMatrix());
+		Mesh mesh(V1, N1, F1);*/
 
 		std::vector<size_t> fpoints{ 228824,
 									20453,
@@ -134,35 +134,35 @@ int main(int argc, char* argv[])
 									160439,
 									170818 };
 
-		Eigen::MatrixXd features{ fpoints.size(),3 };
-		for (int x = 0; x < fpoints.size(); ++x)
-		{
-			features.row(x) = mesh.vertices().row(fpoints[x]);// << std::cos(M_PI * (x / 10.0) - M_PI) * 5, 4.5 + ((std::rand() % 100) / 100.0), std::sin(M_PI * (x / 10.0)) * 5;
-		}
-		std::cout << features << std::endl;
-		auto planeres = PlaneFitter::fitPlane(features);
-		std::cout << "normal: " << planeres.first << std::endl;
-		auto plane = createPlane(planeres.first, planeres.second, { 1, 1,0 });
-		auto curveres = CurveFitter::fitCurve(features);
-		std::cout << "curvemain: " << curveres << std::endl;
-		auto res = CurveFitter::segmentFeatures(features, curveres, planeres.second(1),mesh);
-		igl::opengl::glfw::Viewer viewer2;
-		auto m1 = viewer2.append_mesh();
-		auto m2 = viewer2.append_mesh();
-
-		viewer2.data(m1).set_mesh(plane.Vs, plane.Fs);
-		viewer2.data(m1).set_colors(plane.Cs);
-		viewer2.data(m2).set_mesh(mesh.vertices(), mesh.faces());
-		viewer2.data(m2).set_colors(plane.Cs);// Eigen::RowVector3d(1, 0, 1));
-		viewer2.data().add_points(features, Eigen::RowVector3d(1, 0, 0));
-		viewer2.data().add_points(*res.begin(), Eigen::RowVector3d(0, 1, 0));
-		viewer2.data().add_points(res.back(), Eigen::RowVector3d(1, 1, 0));
-		viewer2.data().point_size = 15;
-		//for (size_t x = 0; x < res.size() / 20; x += 20)
+		//Eigen::MatrixXd features{ fpoints.size(),3 };
+		//for (int x = 0; x < fpoints.size(); ++x)
 		//{
-			//viewer2.data().add_edges(res[0], res[1], Eigen::RowVector3d(0, 1, 0));
+		//	features.row(x) = mesh.vertices().row(fpoints[x]);// << std::cos(M_PI * (x / 10.0) - M_PI) * 5, 4.5 + ((std::rand() % 100) / 100.0), std::sin(M_PI * (x / 10.0)) * 5;
 		//}
-		viewer2.launch();
+		//std::cout << features << std::endl;
+		//auto planeres = PlaneFitter::fitPlane(features);
+		//std::cout << "normal: " << planeres.first << std::endl;
+		//auto plane = createPlane(planeres.first, planeres.second, { 1, 1,0 });
+		//auto curveres = CurveFitter::fitCurve(features);
+		//std::cout << "curvemain: " << curveres << std::endl;
+		//auto res = CurveFitter::segmentFeatures(features, curveres, planeres.second(1),mesh);
+		//igl::opengl::glfw::Viewer viewer2;
+		//auto m1 = viewer2.append_mesh();
+		//auto m2 = viewer2.append_mesh();
+
+		//viewer2.data(m1).set_mesh(plane.Vs, plane.Fs);
+		//viewer2.data(m1).set_colors(plane.Cs);
+		//viewer2.data(m2).set_mesh(mesh.vertices(), mesh.faces());
+		//viewer2.data(m2).set_colors(plane.Cs);// Eigen::RowVector3d(1, 0, 1));
+		//viewer2.data().add_points(features, Eigen::RowVector3d(1, 0, 0));
+		//viewer2.data().add_points(*res.begin(), Eigen::RowVector3d(0, 1, 0));
+		//viewer2.data().add_points(res.back(), Eigen::RowVector3d(1, 1, 0));
+		//viewer2.data().point_size = 15;
+		////for (size_t x = 0; x < res.size() / 20; x += 20)
+		////{
+		//	//viewer2.data().add_edges(res[0], res[1], Eigen::RowVector3d(0, 1, 0));
+		////}
+		//viewer2.launch();
 
 		////Task2
 		//{
