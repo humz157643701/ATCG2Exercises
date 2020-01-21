@@ -47,13 +47,16 @@ public:
 	Eigen::MatrixXd& colors() { return m_colors; }
 	const std::vector<std::vector<Eigen::DenseIndex>>& adjacency_list() const { return m_adjacency_list; }
 	const kdtree_t& kdtree() const { return *m_kdtree.get(); };
+	const std::vector<std::vector<Eigen::DenseIndex>>& triangle_list() const { return m_triangle_list; }
 	void recalculateKdTree();
+	void recalculateTriangleList();
 private:
 	Eigen::MatrixXd m_vertices;
 	Eigen::MatrixXi m_faces;
 	Eigen::MatrixXd m_normals;
 	Eigen::MatrixXd m_colors;
 	std::vector<std::vector<Eigen::DenseIndex>> m_adjacency_list;
+	std::vector<std::vector<Eigen::DenseIndex>> m_triangle_list;
 	std::unique_ptr<kdtree_t> m_kdtree;
 };
 

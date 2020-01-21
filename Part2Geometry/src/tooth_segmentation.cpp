@@ -7,6 +7,8 @@
 #include <vector>
 #include <random>
 #include <Eigen/Sparse>
+//#include <Eigen/SparseQR>
+#include<Eigen/IterativeLinearSolvers>
 
 void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vector3d& mesh_up, const Eigen::Vector3d& mesh_right, std::vector<Mesh>& tooth_meshes, const ToothSegmentation::CuspDetectionParams& cuspd_params, double harmonic_field_w, bool visualize_steps)
 {
@@ -34,26 +36,79 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 	}
 
 	// compute cusp features
-	Eigen::VectorXd mean_curvature;
+	Eigen::VectorXd mean_curvature(mesh.vertices().rows());
 	std::cout << "-- Computing cusp features...\n";
 	Eigen::VectorXi cusps;
-	computeCusps(working_mesh, cusps, mean_curvature, cuspd_params, true);
+	//computeCusps(working_mesh, cusps, mean_curvature, cuspd_params, true);
 	Eigen::VectorXi cut_indices;
-	Eigen::VectorXi index_map; // maps indices from cut mesh to indices from old mesh
-	cutMesh(working_mesh, cut_indices, index_map, Eigen::Vector3d{ 0.0, 1.0, -0.05 }.normalized(), Eigen::Vector3d{ 0.0, -3.0, 0.0 });
+	Eigen::VectorXi inverse_index_map; // maps indices from cut mesh to indices from old mesh
+	Eigen::VectorXi index_map; // original mesh indices -> cut mesh indices
+	cutMesh(working_mesh, cut_indices, inverse_index_map, index_map, Eigen::Vector3d{ 0.0, 1.0, -0.05 }.normalized(), Eigen::Vector3d{ 0.0, -3.0, 0.0 });
 	// remap mean curvature to cut mesh
-	Eigen::VectorXd cut_mean_curvature(mean_curvature(index_map.array()));
+	Eigen::VectorXd cut_mean_curvature(mean_curvature(inverse_index_map.array()));
 
 	/////////////////////////////////////////////////////////
 	/// SPOKE FEATURE STUFF AND AUTOMATIC GINGIVA CUTTING ///
 	/////////////////////////////////////////////////////////
 
 	// assign features to teeth
+	std::vector<ToothFeature> tooth_features{
+		{{index_map(228824), index_map(20453), index_map(0), index_map(0)}, 2},
+		{{index_map(9335), index_map(158157), index_map(165224), index_map(163144)}, 4},
+		{{index_map(3653), index_map(155934), index_map(0), index_map(0)}, 2},
+		{{index_map(154708), index_map(465), index_map(0), index_map(0)}, 2},
+		{{index_map(157325), index_map(4649), index_map(0), index_map(0)}, 2},
+		{{index_map(156244), index_map(1727), index_map(0), index_map(0)}, 2},
+		{{index_map(154437), index_map(154323), index_map(0), index_map(0)}, 2},
+		{{index_map(154374), index_map(281), index_map(0), index_map(0)}, 2},
+		{{index_map(6753), index_map(158652), index_map(0), index_map(0)}, 2},
+		{{index_map(158728), index_map(160864), index_map(0), index_map(0)}, 2},
+		{{index_map(2179), index_map(2224), index_map(0), index_map(0)}, 2},
+		{{index_map(5775), index_map(160101), index_map(0), index_map(0)}, 2},
+		{{index_map(155337), index_map(4017), index_map(5812), index_map(8910)}, 4},
+		{{index_map(16741), index_map(174894), index_map(160439), index_map(170818)}, 4},
+	};
+
+	Eigen::VectorXi toothftidcs(34);
+	Eigen::Index tidx = 0;
+	for (std::size_t i = 0; i < tooth_features.size(); ++i)
+	{
+		for (std::size_t k = 0; k < tooth_features[i].numFeaturePoints; ++k)
+		{
+			toothftidcs[tidx++] = tooth_features[i].featurePointIndices[k];
+		}
+	}
+
+	Eigen::Index bla = 0;
+	
+
+	if (visualize_steps)
+	{
+		igl::opengl::glfw::Viewer viewer;
+		viewer.data().set_mesh(working_mesh.vertices(), working_mesh.faces());
+		viewer.data().set_points(working_mesh.vertices()(toothftidcs.array(), Eigen::all), Eigen::RowVector3d(1.0, 1.0, 1.0));
+		viewer.data().point_size = 5.0;
+		viewer.launch();
+	}
+
+
 
 	//// harmonic field stuff
-	std::vector<ToothFeature> tooth_features;
+	std::cout << "Solving harmonic field...\n";
 	Eigen::VectorXd harmonic_field;
 	calculateHarmonicField(working_mesh, cut_mean_curvature, tooth_features, cut_indices, harmonic_field, 1000.0);
+
+	if (visualize_steps)
+	{
+		igl::opengl::glfw::Viewer viewer;
+		viewer.data().set_mesh(working_mesh.vertices(), working_mesh.faces());
+		viewer.data().set_points(working_mesh.vertices()(toothftidcs.array(), Eigen::all), Eigen::RowVector3d(1.0, 1.0, 1.0));
+		viewer.data().point_size = 5.0;
+		Eigen::MatrixXd C(working_mesh.vertices().rows(), 3);
+		igl::jet(harmonic_field, true, C);
+		viewer.data().set_colors(C);
+		viewer.launch();
+	}
 }
 
 void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& features, Eigen::VectorXd& mean_curvature, const ToothSegmentation::CuspDetectionParams& cuspd_params, bool visualize_steps)
@@ -369,33 +424,109 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& features
 
 void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::VectorXd& mean_curvature, const std::vector<ToothFeature>& toothFeatures, const Eigen::VectorXi& cutIndices, Eigen::VectorXd& harmonic_field, double w, bool visualize_steps)
 {
+	std::cout << "Building laplacian matrix...\n";
 	// sort indices by constraint type
 	// tooth features
-	Eigen::VectorXi tooth_ft_indices;
 	Eigen::Index num_tooth_features = 0;
 	for (const auto& t : toothFeatures)
 		num_tooth_features += t.numFeaturePoints;
-	tooth_ft_indices.resize(num_tooth_features);
-	num_tooth_features = 0;
-	for (const auto& t : toothFeatures)
-		for (Eigen::Index i = 0; i < t.numFeaturePoints; ++i)
-			tooth_ft_indices(num_tooth_features++) = t.featurePointIndices[i];
 
 	// calculate laplacian matrix
-	Eigen::SparseMatrix<double> L(mesh.vertices().rows(), mesh.vertices().rows());
+	Eigen::SparseMatrix<double> L(mesh.vertices().rows() + cutIndices.rows() + num_tooth_features, mesh.vertices().rows());
 	L.setZero();
+	Eigen::VectorXd b(mesh.vertices().rows() + cutIndices.rows() + num_tooth_features);	
+	b.setZero();
 
-	
+	std::vector<Eigen::Triplet<double>> Ltripls;
+	std::vector<Eigen::Triplet<double>> Btripls;
 
+	for (Eigen::Index i = 0; i < mesh.vertices().rows(); ++i)
+	{
+		/*if (i % 1000 == 0)
+			std::cout << (static_cast<double>(i) / mesh.vertices().rows()) * 100.0 << "%\n";*/
+		double iweight = 0.0;
+		for (Eigen::Index a = 0; a < mesh.adjacency_list()[i].size(); ++a)
+		{
+			Eigen::Index j = mesh.adjacency_list()[i][a];			
+			//L.coeffRef(i, j) = -calcCotanWeight(i, j, mesh);
+			double cotij = calcCotanWeight(i, j, mesh);
+			Ltripls.push_back(Eigen::Triplet<double>(i, j, -cotij));
+			iweight += cotij;
+		}
+		Ltripls.push_back(Eigen::Triplet<double>(i, i, iweight));
+	}
+	std::cout << "L non-zero entries: " << Ltripls.size() << "\n";
+	std::cout << "Num vertices: " << mesh.vertices().rows() << "\n";
 
-	// calculate constraint matrix
+	L.setFromTriplets(Ltripls.begin(), Ltripls.end());
 
-	// calculate b vector
+	/*std::cout << "Setting diagonals...\n";
+
+	for (Eigen::Index i = 0; i < mesh.vertices().rows(); ++i)
+	{
+		Ltripls.push_back(Eigen::Triplet<double>(i, i, -L.row(i).sum()));
+		if (i % 1000 == 0)
+			std::cout << (static_cast<double>(i) / mesh.vertices().rows()) * 100.0 << "%\n";
+	}*/
+
+	//L.setFromTriplets(Ltripls.begin(), Ltripls.end());
+
+	std::cout << "Building constraint matrix...\n";
+	// calculate constraint matrix and b values
+	// tooth features
+	std::cout << "Tooth features...\n";
+	Eigen::Index ti = 0;
+	for (Eigen::Index t = 0; t < toothFeatures.size(); ++t)
+	{
+		for (Eigen::Index i = 0; i < toothFeatures[t].numFeaturePoints; ++i)
+		{
+			Ltripls.push_back(Eigen::Triplet<double>(mesh.vertices().rows() + ti, toothFeatures[t].featurePointIndices[i], w));
+			b(mesh.vertices().rows() + ti) = ((t % 2 == 0) ? 0.0 : w);
+			++ti;
+			//std::cout << (static_cast<double>(ti) / num_tooth_features) * 100.0 << "%\n";
+		}
+	}
+
+	std::cout << "L non-zero entries: " << Ltripls.size() << "\n";
+
+	// cut boundary vertices
+	std::cout << "Cut boundary...\n";
+	for (Eigen::Index i = 0; i < cutIndices.rows(); ++i)
+	{
+		Ltripls.push_back(Eigen::Triplet<double>(mesh.vertices().rows() + num_tooth_features + i, cutIndices(i), w));
+		b(mesh.vertices().rows() + num_tooth_features + i) = 0.5 * w;
+		/*if(i % 100 == 0)
+			std::cout << (static_cast<double>(i) / cutIndices.rows()) * 100.0 << "%\n";*/
+	}
+
+	std::cout << "L non-zero entries: " << Ltripls.size() << "\n";
+
+	L.setFromTriplets(Ltripls.begin(), Ltripls.end());
+
+	//// mass matrix
+	//Eigen::SparseMatrix<double> M, Minv;
+	//igl::massmatrix(mesh.vertices(), mesh.faces(), igl::MASSMATRIX_TYPE_VORONOI, M);
+	//igl::invert_diag(M, Minv);
+
+	//std::cout << "Mass matrix stuff\n";
+	//L.block(0, 0, mesh.vertices().rows(), mesh.vertices().rows()) = Minv * L.block(0, 0, mesh.vertices().rows(), mesh.vertices().rows());
 
 	// solve sparse system
+	std::cout << "Solving linear system...\n";
+	//Eigen::SparseQR<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver;
+	Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double>> solver;
+	solver.compute(L);
+	if (solver.info() != Eigen::Success)
+	{
+		std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! SPARSE QR DECOMPOSTION FAILED !!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
+		harmonic_field.resize(mesh.vertices().rows());
+		harmonic_field.setZero();
+	}
+	harmonic_field = solver.solve(b);
+	std::cout << "Done done.\n";
 }
 
-void ToothSegmentation::cutMesh(Mesh& mesh, Eigen::VectorXi& cut_indices, Eigen::VectorXi& ivrs_index_map, const Eigen::Vector3d& normal, const Eigen::Vector3d& plane_point)
+void ToothSegmentation::cutMesh(Mesh& mesh, Eigen::VectorXi& cut_indices, Eigen::VectorXi& ivrs_index_map, Eigen::VectorXi& _index_map, const Eigen::Vector3d& normal, const Eigen::Vector3d& plane_point)
 {
 	std::vector<Eigen::RowVector3d> newvertices;
 	std::vector<Eigen::RowVector3i> newfaces;
@@ -473,4 +604,50 @@ void ToothSegmentation::cutMesh(Mesh& mesh, Eigen::VectorXi& cut_indices, Eigen:
 	for (Eigen::DenseIndex i = 0; i < index_map.rows(); ++i)
 		if(index_map(i) != -1)
 			ivrs_index_map(index_map(i)) = i;
+
+	_index_map = index_map;
+}
+
+double ToothSegmentation::calcCotanWeight(const Eigen::Index & i, const Eigen::Index & j, const Mesh & mesh)
+{
+	bool is_adjacent = false;
+	for (std::size_t n = 0; n < mesh.adjacency_list()[i].size(); ++n)
+	{
+		if (mesh.adjacency_list()[i][n] == j)
+		{
+			is_adjacent = true;
+		}
+	}
+
+	if (is_adjacent)
+	{
+		Eigen::Vector3d vi = mesh.vertices()(i, Eigen::all);
+		Eigen::Vector3d vj = mesh.vertices()(j, Eigen::all);
+		double res = 0.0;
+		for (Eigen::Index t = 0; t < mesh.triangle_list()[i].size(); ++t)
+		{
+			for (Eigen::Index k = 0; k < 3; ++k)
+			{
+				if (mesh.faces()(mesh.triangle_list()[i][t], k) == j)
+				{
+					for (Eigen::Index l = 0; l < 3; ++l)
+					{
+						if (mesh.faces()(mesh.triangle_list()[i][t], l) != i && mesh.faces()(mesh.triangle_list()[i][t], l) != j)
+						{
+							Eigen::Vector3d vl = mesh.vertices()(mesh.faces()(mesh.triangle_list()[i][t], l), Eigen::all);
+							res += ((vi - vl).normalized().dot((vj - vl).normalized())) / ((vi - vl).normalized().cross((vj - vl).normalized())).norm();
+						}
+					}
+				}
+			}
+		}
+		if (!std::isnan(res))
+			return res / 2.0;
+		else
+			return 0.0;
+	}
+	else
+	{
+		return 0.0;
+	}
 }
