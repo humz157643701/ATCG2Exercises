@@ -400,7 +400,7 @@ void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::Ve
 
 	for (Eigen::Index i = 0; i < mesh.vertices().rows(); ++i)
 	{
-		L.coeffRef(i, i) = L.row(i).sum();
+		L.coeffRef(i, i) = -L.row(i).sum();
 	}
 
 	std::cout << "Building constraint matrix...\n";
