@@ -40,67 +40,57 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 	/*Eigen::VectorXi cusps;
 	computeCusps(working_mesh, cusps, mean_curvature, cuspd_params, true);*/
 	Eigen::VectorXi cut_indices;
-	Eigen::VectorXi index_map; // maps indices from cut mesh to indices from old mesh
-	cutMesh(working_mesh, cut_indices, index_map, Eigen::Vector3d{ 0.0, 1.0, -0.05 }.normalized(), Eigen::Vector3d{ 0.0, -3.0, 0.0 });
+	Eigen::VectorXi inverse_index_map; // maps indices from cut mesh to indices from old mesh
+	Eigen::VectorXi index_map;
+	cutMesh(working_mesh, cut_indices, inverse_index_map, index_map, Eigen::Vector3d{ 0.0, 1.0, -0.05 }.normalized(), Eigen::Vector3d{ 0.0, -3.0, 0.0 });
 	// remap mean curvature to cut mesh
-	Eigen::VectorXd cut_mean_curvature(mean_curvature(index_map.array()));
+	Eigen::VectorXd cut_mean_curvature(mean_curvature(inverse_index_map.array()));
 
 	/////////////////////////////////////////////////////////
 	/// SPOKE FEATURE STUFF AND AUTOMATIC GINGIVA CUTTING ///
 	/////////////////////////////////////////////////////////
 
 	// assign features to teeth
-	std::vector<size_t> fpoints{ 228824,
-									20453,
+	std::vector<ToothFeature> tooth_features{
+		{{index_map(228824), index_map(228824), index_map(0), index_map(0)}, 2},
+		{{index_map(9335), index_map(158157), index_map(165224), index_map(163144)}, 4},
+		{{index_map(3653), index_map(155934), index_map(0), index_map(0)}, 2},
+		{{index_map(154708), index_map(465), index_map(0), index_map(0)}, 2},
+		{{index_map(157325), index_map(4649), index_map(0), index_map(0)}, 2},
+		{{index_map(156244), index_map(1727), index_map(0), index_map(0)}, 2},
+		{{index_map(154437), index_map(154323), index_map(0), index_map(0)}, 2},
+		{{index_map(154374), index_map(281), index_map(0), index_map(0)}, 2},
+		{{index_map(6753), index_map(158652), index_map(0), index_map(0)}, 2},
+		{{index_map(158728), index_map(160864), index_map(0), index_map(0)}, 2},
+		{{index_map(2179), index_map(2224), index_map(0), index_map(0)}, 2},
+		{{index_map(5775), index_map(160101), index_map(0), index_map(0)}, 2},
+		{{index_map(155337), index_map(4017), index_map(5812), index_map(8910)}, 4},
+		{{index_map(16741), index_map(174894), index_map(160439), index_map(170818)}, 4},
+	};
 
-									9335  ,
-									158157,
-									165224,
-									163144,
+	Eigen::Index bla = 0;
+	Eigen::VectorXi toothftidcs(34);
+	for (std::size_t i = 0; i < tooth_features.size(); ++i)
+	{
+		for (std::size_t k = 0; k < tooth_features[i].numFeaturePoints; ++k)
+		{
+			toothftidcs[bla++] = tooth_features[i].featurePointIndices[k];
+		}
+	}
 
-									3653  ,
-									155934,
+	if (visualize_steps)
+	{
+		igl::opengl::glfw::Viewer viewer;
+		viewer.data().set_mesh(working_mesh.vertices(), working_mesh.faces());
+		viewer.data().set_points(working_mesh.vertices()(toothftidcs.array(), Eigen::all), Eigen::RowVector3d(1.0, 1.0, 1.0));
+		viewer.data().point_size = 5.0;
+		viewer.launch();
+	}
 
-									154708,
-									465	  ,
 
-									157325,
-									4649  ,
-
-									156244,
-									1727  ,
-
-									154437,
-									154323,
-
-									154374,
-									281	  ,
-
-									6753  ,
-									158652,
-
-									158728,
-									160864,
-
-									2179  ,
-									2224  ,
-
-									5775  ,
-									160101,
-
-									155337,
-									4017  ,
-									5812  ,
-									8910  ,
-
-									16741 ,
-									174894,
-									160439,
-									170818 };
 
 	//// harmonic field stuff
 	std::cout << "Solving harmonic field...\n";
-	std::vector<ToothFeature> tooth_features;
 	Eigen::VectorXd harmonic_field;
 	calculateHarmonicField(working_mesh, cut_mean_curvature, tooth_features, cut_indices, harmonic_field, 1000.0);
 }
@@ -484,7 +474,7 @@ void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::Ve
 	harmonic_field = solver.solve(b);
 }
 
-void ToothSegmentation::cutMesh(Mesh& mesh, Eigen::VectorXi& cut_indices, Eigen::VectorXi& ivrs_index_map, const Eigen::Vector3d& normal, const Eigen::Vector3d& plane_point)
+void ToothSegmentation::cutMesh(Mesh& mesh, Eigen::VectorXi& cut_indices, Eigen::VectorXi& ivrs_index_map, Eigen::VectorXi& _index_map, const Eigen::Vector3d& normal, const Eigen::Vector3d& plane_point)
 {
 	std::vector<Eigen::RowVector3d> newvertices;
 	std::vector<Eigen::RowVector3i> newfaces;
@@ -562,6 +552,8 @@ void ToothSegmentation::cutMesh(Mesh& mesh, Eigen::VectorXi& cut_indices, Eigen:
 	for (Eigen::DenseIndex i = 0; i < index_map.rows(); ++i)
 		if(index_map(i) != -1)
 			ivrs_index_map(index_map(i)) = i;
+
+	_index_map = index_map;
 }
 
 double ToothSegmentation::calcCotanWeight(const Eigen::Index & i, const Eigen::Index & j, const Mesh & mesh)

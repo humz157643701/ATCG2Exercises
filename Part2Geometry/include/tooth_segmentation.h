@@ -71,6 +71,7 @@ private:
 		bool visualize_steps = false);
 	static void cutMesh(Mesh& mesh,
 		Eigen::VectorXi& cut_indices,
+		Eigen::VectorXi& inv_index_map,
 		Eigen::VectorXi& index_map,
 		const Eigen::Vector3d& normal,
 		const Eigen::Vector3d& plane_point);
