@@ -47,12 +47,18 @@ public:
 		Eigen::DenseIndex numFeaturePoints;
 	};
 
+	struct HarmonicFieldParams
+	{
+		double w;
+		double lambda;
+	};
+
 	static void segmentTeethFromMesh(const Mesh& mesh,
 		const Eigen::Vector3d& mesh_up,
 		const Eigen::Vector3d& mesh_right,
 		std::vector<Mesh>& tooth_meshes,
 		const CuspDetectionParams& cuspd_params = {0.4, 1000, 0.5},
-		double harmonic_field_w = 1000.0,
+		const HarmonicFieldParams& hf_params = { 1.0, 1.0 },
 		bool visualize_steps = false
 		);
 
@@ -67,7 +73,7 @@ private:
 		const std::vector<ToothFeature>& toothFeatures,
 		const Eigen::VectorXi& cut_indices,
 		Eigen::VectorXd& harmonic_field,
-		double w = 1000.0,
+		const HarmonicFieldParams& hf_params,
 		bool visualize_steps = false);
 	static void cutMesh(Mesh& mesh,
 		Eigen::VectorXi& cut_indices,
@@ -76,7 +82,9 @@ private:
 		const Eigen::Vector3d& normal,
 		const Eigen::Vector3d& plane_point);
 	static double calcCotanWeight(const Eigen::Index& i, const Eigen::Index& j, const Mesh& mesh);
-	static double calcCurvatureWeight(const Eigen::VectorXd& mean_curvature, const Eigen::Index& i, const Eigen::Index& j);
+	static double calcCurvatureWeight(const Eigen::Index& i, const Eigen::Index& j, const Eigen::VectorXd& mean_curvature, double lambda);
+	static double calcCurvatureWeight(const Eigen::Index& i, const Eigen::VectorXd& mean_curvature, double lambda);
+
 
 };
 

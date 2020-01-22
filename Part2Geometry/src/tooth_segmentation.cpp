@@ -10,7 +10,7 @@
 //#include <Eigen/SparseQR>
 #include<Eigen/IterativeLinearSolvers>
 
-void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vector3d& mesh_up, const Eigen::Vector3d& mesh_right, std::vector<Mesh>& tooth_meshes, const ToothSegmentation::CuspDetectionParams& cuspd_params, double harmonic_field_w, bool visualize_steps)
+void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vector3d& mesh_up, const Eigen::Vector3d& mesh_right, std::vector<Mesh>& tooth_meshes, const ToothSegmentation::CuspDetectionParams& cuspd_params, const HarmonicFieldParams& hf_params, bool visualize_steps)
 {
 	// transform mesh to canonical pose
 	std::cout << "--- TOOTH SEGMENTATION ---\n";
@@ -39,7 +39,7 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 	Eigen::VectorXd mean_curvature(mesh.vertices().rows());
 	std::cout << "-- Computing cusp features...\n";
 	Eigen::VectorXi cusps;
-	//computeCusps(working_mesh, cusps, mean_curvature, cuspd_params, true);
+	computeCusps(working_mesh, cusps, mean_curvature, cuspd_params, visualize_steps);
 	Eigen::VectorXi cut_indices;
 	Eigen::VectorXi inverse_index_map; // maps indices from cut mesh to indices from old mesh
 	Eigen::VectorXi index_map; // original mesh indices -> cut mesh indices
@@ -66,21 +66,24 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 		{{index_map(2179), index_map(2224), index_map(0), index_map(0)}, 2},
 		//{{index_map(5775), index_map(160101), index_map(0), index_map(0)}, 2},
 		{{index_map(155337), index_map(4017), index_map(5812), index_map(8910)}, 4},
-		{{index_map(16741), index_map(174894), index_map(160439), index_map(170818)}, 4},
+		{{index_map(16741), index_map(174894), index_map(160439), index_map(170818)}, 4}
 	};
 
-	Eigen::VectorXi toothftidcs(34);
+	
 	Eigen::Index tidx = 0;
 	for (std::size_t i = 0; i < tooth_features.size(); ++i)
 	{
-		for (std::size_t k = 0; k < tooth_features[i].numFeaturePoints; ++k)
+		tidx += tooth_features[i].numFeaturePoints;
+	}
+	Eigen::VectorXi toothftidcs(tidx);
+	tidx = 0;
+	for (std::size_t i = 0; i < tooth_features.size(); ++i)
+	{
+		for (std::size_t t = 0; t < tooth_features[i].numFeaturePoints; ++t)
 		{
-			toothftidcs[tidx++] = tooth_features[i].featurePointIndices[k];
+			toothftidcs[tidx++] =  tooth_features[i].featurePointIndices[t];
 		}
 	}
-
-	Eigen::Index bla = 0;
-	
 
 	if (visualize_steps)
 	{
@@ -96,7 +99,7 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 	//// harmonic field stuff
 	std::cout << "Solving harmonic field...\n";
 	Eigen::VectorXd harmonic_field;
-	calculateHarmonicField(working_mesh, cut_mean_curvature, tooth_features, cut_indices, harmonic_field, 1000.0);
+	calculateHarmonicField(working_mesh, cut_mean_curvature, tooth_features, cut_indices, harmonic_field, hf_params, visualize_steps);
 
 	if (visualize_steps)
 	{
@@ -422,7 +425,7 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& features
 	}
 }
 
-void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::VectorXd& mean_curvature, const std::vector<ToothFeature>& toothFeatures, const Eigen::VectorXi& cutIndices, Eigen::VectorXd& harmonic_field, double w, bool visualize_steps)
+void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::VectorXd& mean_curvature, const std::vector<ToothFeature>& toothFeatures, const Eigen::VectorXi& cutIndices, Eigen::VectorXd& harmonic_field, const HarmonicFieldParams& hf_params, bool visualize_steps)
 {
 	std::cout << "Building laplacian matrix...\n";
 	// sort indices by constraint type
@@ -441,15 +444,12 @@ void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::Ve
 
 	for (Eigen::Index i = 0; i < mesh.vertices().rows(); ++i)
 	{
-		/*if (i % 1000 == 0)
-			std::cout << (static_cast<double>(i) / mesh.vertices().rows()) * 100.0 << "%\n";*/
 		double iweight = 0.0;
 		for (Eigen::Index a = 0; a < mesh.adjacency_list()[i].size(); ++a)
 		{
 			Eigen::Index j = mesh.adjacency_list()[i][a];			
-			//L.coeffRef(i, j) = -calcCotanWeight(i, j, mesh);
-			double cotij = calcCotanWeight(i, j, mesh);// *calcCurvatureWeight(i, j, mean_curvature);
-			Ltripls.push_back(Eigen::Triplet<double>(i, j, -cotij));
+			double cotij = calcCotanWeight(i, j, mesh);
+			Ltripls.push_back(Eigen::Triplet<double>(i, j, - cotij));
 			iweight += cotij;
 		}
 		Ltripls.push_back(Eigen::Triplet<double>(i, i, iweight));
@@ -459,11 +459,17 @@ void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::Ve
 
 	L.setFromTriplets(Ltripls.begin(), Ltripls.end());
 
-	// mass matrix
+	// mass matrix to account for triangulation
 	Eigen::SparseMatrix<double> M, Minv;
 	igl::massmatrix(mesh.vertices(), mesh.faces(), igl::MASSMATRIX_TYPE_VORONOI, M);
 	igl::invert_diag(M, Minv);
 	L = Minv * L;
+
+	//// curvatureWeight to keep negative curvature features
+	//for (Eigen::Index i = 0; i < L.rows(); ++i)
+	//{
+	//	L.coeffRef(i, i) *= calcCurvatureWeight(i, mean_curvature, hf_params.lambda);
+	//}
 
 	/*std::cout << "Setting diagonals...\n";
 
@@ -486,7 +492,7 @@ void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::Ve
 		{
 			L.row(toothFeatures[t].featurePointIndices[i]) *= 0.0;
 			L.coeffRef(toothFeatures[t].featurePointIndices[i], toothFeatures[t].featurePointIndices[i]) = 1.0;
-			b(toothFeatures[t].featurePointIndices[i]) = ((t % 2 == 0) ? 0.0 : 1.0);// w);
+			b(toothFeatures[t].featurePointIndices[i]) = ((t % 2 == 0) ? 0.0 : hf_params.w);
 		}
 	}
 
@@ -496,7 +502,7 @@ void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::Ve
 	{
 		L.row(cutIndices(i)) *= 0.0;
 		L.coeffRef(cutIndices(i), cutIndices(i)) = 1.0;
-		b(cutIndices(i)) = 0.5;// *w;
+		b(cutIndices(i)) = 0.5 * hf_params.w;
 	}
 
 	// solve sparse system
@@ -637,7 +643,14 @@ double ToothSegmentation::calcCotanWeight(const Eigen::Index & i, const Eigen::I
 	}
 }
 
-double ToothSegmentation::calcCurvatureWeight(const Eigen::VectorXd& mean_curvature, const Eigen::Index& i, const Eigen::Index& j)
+double ToothSegmentation::calcCurvatureWeight(const Eigen::Index& i, const Eigen::Index& j, const Eigen::VectorXd& mean_curvature, double lambda)
 {
-	return 0.0;
+	double nmc = std::max(std::abs(std::min(mean_curvature(i), 0.0)), std::abs(std::min(mean_curvature(j), 0.0)));
+	return std::exp(-lambda * (nmc * nmc));
+}
+
+double ToothSegmentation::calcCurvatureWeight(const Eigen::Index & i, const Eigen::VectorXd & mean_curvature, double lambda)
+{
+	double nmc = std::abs(std::min(mean_curvature(i), 0.0));
+	return std::exp(-lambda * (nmc * nmc));
 }
