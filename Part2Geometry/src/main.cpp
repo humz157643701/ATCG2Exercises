@@ -66,7 +66,7 @@ int main(int argc, char* argv[])
 				0.8, // curvature exponent
 				0.9, // height exponent
 				0.5, // min feature height
-				0.0003, // smoothing step size
+				0.00025, // smoothing step size
 				50, // smoothing steps
 				2.0, // max zscore
 				0.5, // fraction of local maxima to be considered for mean shift
@@ -77,7 +77,9 @@ int main(int argc, char* argv[])
 			},
 			ToothSegmentation::HarmonicFieldParams{
 				1.0,
-				1.0
+				1.0,
+				0.01,
+				0.5
 			},
 			true
 			);

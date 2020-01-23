@@ -50,7 +50,9 @@ public:
 	struct HarmonicFieldParams
 	{
 		double w;
-		double lambda;
+		double gamma_high;
+		double gamma_low;
+		double concavity_threshold;
 	};
 
 	static void segmentTeethFromMesh(const Mesh& mesh,
@@ -82,10 +84,7 @@ private:
 		const Eigen::Vector3d& normal,
 		const Eigen::Vector3d& plane_point);
 	static double calcCotanWeight(const Eigen::Index& i, const Eigen::Index& j, const Mesh& mesh);
-	static double calcCurvatureWeight(const Eigen::Index& i, const Eigen::Index& j, const Eigen::VectorXd& mean_curvature, double lambda);
-	static double calcCurvatureWeight(const Eigen::Index& i, const Eigen::VectorXd& mean_curvature, double lambda);
-
-
+	static double calcCurvatureWeight(const Eigen::Index& i, const Eigen::Index& j, const Eigen::VectorXd& mean_curvature, const HarmonicFieldParams& hf_params);
 };
 
 
