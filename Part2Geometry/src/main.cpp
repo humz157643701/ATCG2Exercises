@@ -76,10 +76,10 @@ int main(int argc, char* argv[])
 				0.03 // feature collapse distance
 			},
 			ToothSegmentation::HarmonicFieldParams{
-				1.0,
-				1.0,
-				0.01,
-				0.5
+				1.0,	// w
+				1.0,	// cvtr weight high
+				0.001, // cvtr weight low
+				0.1		// neg. cvtr threshold
 			},
 			true
 			);
