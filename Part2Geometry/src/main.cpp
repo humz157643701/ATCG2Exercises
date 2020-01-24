@@ -51,41 +51,41 @@ int main(int argc, char* argv[])
 		igl::per_vertex_normals(V1, F1, N1);
 		// build mesh
 		std::cout << "--- Building mesh data structure...\n";
+		//Mesh mesh(V1, N1, F1);
+
+
+
+
+		//std::vector<Mesh> teeth;
+		//ToothSegmentation::segmentTeethFromMesh(mesh,
+		//	Eigen::Vector3d{ 0.0, -1.0, 0.0 },
+		//	Eigen::Vector3d{ -1.0, 0.0, 0.0 },
+		//	teeth,
+		//	ToothSegmentation::CuspDetectionParams{
+		//		0.5, // curvature <-> height
+		//		0.8, // curvature exponent
+		//		0.9, // height exponent
+		//		0.5, // min feature height
+		//		0.0003, // smoothing step size
+		//		50, // smoothing steps
+		//		2.0, // max zscore
+		//		0.5, // fraction of local maxima to be considered for mean shift
+		//		0.012, // mean shift window size
+		//		1e-4, // min total shift before convergence
+		//		1000, // max mean shift iterations
+		//		0.03 // feature collapse distance
+		//	},
+		//	1000.0,
+		//	true
+		//	);
+
+
+
+
+
+
+		V1 *= Eigen::MatrixXd(Eigen::AngleAxis<double>(M_PI, Eigen::Vector3d{ 0,0,1 }).toRotationMatrix());
 		Mesh mesh(V1, N1, F1);
-
-
-
-
-		std::vector<Mesh> teeth;
-		ToothSegmentation::segmentTeethFromMesh(mesh,
-			Eigen::Vector3d{ 0.0, -1.0, 0.0 },
-			Eigen::Vector3d{ -1.0, 0.0, 0.0 },
-			teeth,
-			ToothSegmentation::CuspDetectionParams{
-				0.5, // curvature <-> height
-				0.8, // curvature exponent
-				0.9, // height exponent
-				0.5, // min feature height
-				0.0003, // smoothing step size
-				50, // smoothing steps
-				2.0, // max zscore
-				0.5, // fraction of local maxima to be considered for mean shift
-				0.012, // mean shift window size
-				1e-4, // min total shift before convergence
-				1000, // max mean shift iterations
-				0.03 // feature collapse distance
-			},
-			1000.0,
-			true
-			);
-
-
-
-
-
-
-		/*V1 *= Eigen::MatrixXd(Eigen::AngleAxis<double>(M_PI, Eigen::Vector3d{ 0,0,1 }).toRotationMatrix());
-		Mesh mesh(V1, N1, F1);*/
 
 		std::vector<size_t> fpoints{ 228824,
 									20453,
@@ -151,14 +151,15 @@ int main(int argc, char* argv[])
 		auto m1 = viewer2.append_mesh();
 		auto m2 = viewer2.append_mesh();
 
-		viewer2.data(m1).set_mesh(plane.Vs, plane.Fs);
-		viewer2.data(m1).set_colors(plane.Cs);
+		//viewer2.data(m1).set_mesh(plane.Vs, plane.Fs);
+		//viewer2.data(m1).set_colors(plane.Cs);
 		viewer2.data(m2).set_mesh(mesh.vertices(), mesh.faces());
-		viewer2.data(m2).set_colors(plane.Cs);// Eigen::RowVector3d(1, 0, 1));
+		viewer2.data(m2).set_colors(plane.Cs.row(0));// Eigen::RowVector3d(1, 0, 1));
 		viewer2.data().add_points(features, Eigen::RowVector3d(1, 0, 0));
 		viewer2.data().add_points(*res.begin(), Eigen::RowVector3d(0, 1, 0));
 		viewer2.data().add_points(res.back(), Eigen::RowVector3d(0, 1, 1));
 		viewer2.data().point_size = 10;
+		viewer2.launch();
 		//for (size_t x = 0; x < res.size() / 20; x += 20)
 		//Eigen::MatrixXd features{ fpoints.size(),3 };
 		//for (int x = 0; x < fpoints.size(); ++x)
