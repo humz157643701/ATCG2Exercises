@@ -62,18 +62,15 @@ int main(int argc, char* argv[])
 			Eigen::Vector3d{ -1.0, 0.0, 0.0 },
 			teeth,
 			ToothSegmentation::CuspDetectionParams{
-				0.5, // curvature <-> height
-				0.8, // curvature exponent
-				0.9, // height exponent
+				0.7, // curvature <-> height
+				0.85, // curvature exponent
+				0.8, // height exponent
 				0.5, // min feature height
-				0.00025, // smoothing step size
-				50, // smoothing steps
-				2.0, // max zscore
-				0.5, // fraction of local maxima to be considered for mean shift
+				0.75, // fraction of local maxima to be considered for mean shift
 				0.012, // mean shift window size
 				1e-4, // min total shift before convergence
 				1000, // max mean shift iterations
-				0.03 // feature collapse distance
+				0.003 // feature collapse distance
 			},
 			ToothSegmentation::HarmonicFieldParams{
 				1.0,	// w
@@ -81,12 +78,13 @@ int main(int argc, char* argv[])
 				0.001, // cvtr weight low
 				0.1		// neg. cvtr threshold
 			},
+			ToothSegmentation::MeanCurvatureParams{
+				0.00025, // smoothing step size
+				50, // smoothing steps
+				2.0 // max zscore
+			},
 			true
-			);
-
-
-
-
+		);
 
 
 		/*V1 *= Eigen::MatrixXd(Eigen::AngleAxis<double>(M_PI, Eigen::Vector3d{ 0,0,1 }).toRotationMatrix());

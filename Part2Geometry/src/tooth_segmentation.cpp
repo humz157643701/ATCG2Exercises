@@ -7,16 +7,19 @@
 #include <vector>
 #include <random>
 #include <Eigen/Sparse>
+#include <cmath>
 //#include <Eigen/SparseQR>
 #include<Eigen/IterativeLinearSolvers>
 
-void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vector3d& mesh_up, const Eigen::Vector3d& mesh_right, std::vector<Mesh>& tooth_meshes, const ToothSegmentation::CuspDetectionParams& cuspd_params, const HarmonicFieldParams& hf_params, bool visualize_steps)
+void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vector3d& approximate_mesh_up, const Eigen::Vector3d& mesh_right, std::vector<Mesh>& tooth_meshes, const ToothSegmentation::CuspDetectionParams& cuspd_params, const HarmonicFieldParams& hf_params, const MeanCurvatureParams& mc_params, bool visualize_steps)
 {
 	// transform mesh to canonical pose
 	std::cout << "--- TOOTH SEGMENTATION ---\n";
-	std::cout << "-- Transforming mesh into canonical pose...\n";
+	//std::cout << "-- Transforming mesh into canonical pose...\n";
 	Mesh working_mesh(mesh);
-	Eigen::Matrix3d crot;
+
+	// manual transformation of the mesh to canonical pose given mesh_up and mesh_right
+	/*Eigen::Matrix3d crot;
 	crot.col(0) = mesh_right.normalized();
 	crot.col(1) = mesh_up.normalized();
 	crot.col(2) = mesh_right.cross(mesh_up).normalized();
@@ -26,7 +29,12 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 	working_mesh.vertices() *= crot.transpose();
 	working_mesh.normals() *= crot.transpose();
 	working_mesh.vertices().rowwise() += ctrans.transpose();
-	working_mesh.recalculateKdTree();
+	working_mesh.recalculateKdTree();*/
+
+	// try to find a better up vector
+	std::cout << "-- Estimating up vector...\n";
+	Eigen::Vector3d mesh_up = estimateUpVector(working_mesh, approximate_mesh_up);
+	std::cout << "Estimated up vector: (" << mesh_up(0) << " " << mesh_up(1) << " " << mesh_up(2) << ")\n";
 
 	if (visualize_steps)
 	{
@@ -35,19 +43,38 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 		viewer.launch();
 	}
 
+	// compute mean curvature estimate
+	std::cout << "-- Computing mean curvature...\n";
+	Eigen::VectorXd mean_curvature(working_mesh.vertices().rows());
+	computeMeanCurvature(working_mesh, mean_curvature, mc_params, visualize_steps);
+
 	// compute cusp features
-	Eigen::VectorXd mean_curvature(mesh.vertices().rows());
 	std::cout << "-- Computing cusp features...\n";
 	Eigen::VectorXi cusps;
-	computeCusps(working_mesh, cusps, mean_curvature, cuspd_params, visualize_steps);
+	computeCusps(working_mesh, mesh_up, mean_curvature, cusps, cuspd_params, visualize_steps);
+
+	// second iteration
+	mesh_up = estimateUpVector(working_mesh.vertices()(cusps.array(), Eigen::all), approximate_mesh_up);
+	std::cout << "Estimated up vector: (" << mesh_up(0) << " " << mesh_up(1) << " " << mesh_up(2) << ")\n";
+	computeCusps(working_mesh, mesh_up, mean_curvature, cusps, cuspd_params, visualize_steps);
+
+	// gingiva cut
+	Eigen::VectorXd vertex_heights(working_mesh.vertices().rows());
+	for (Eigen::Index i = 0; i < working_mesh.vertices().rows(); ++i)
+		vertex_heights(i) = working_mesh.vertices()(i, Eigen::all).dot(mesh_up.transpose());
+
+	double aabbminheight = vertex_heights.minCoeff();
+	double aabbheight = vertex_heights.maxCoeff() - aabbminheight;
+
+	std::cout << "-- Performing gingiva cut...\n";
 	Eigen::VectorXi cut_indices;
 	Eigen::VectorXi inverse_index_map; // maps indices from cut mesh to indices from old mesh
 	Eigen::VectorXi index_map; // original mesh indices -> cut mesh indices
-	cutMesh(working_mesh, cut_indices, inverse_index_map, index_map, Eigen::Vector3d{ 0.0, 1.0, -0.05 }.normalized(), Eigen::Vector3d{ 0.0, -3.0, 0.0 });
+	cutMesh(working_mesh, cut_indices, inverse_index_map, index_map, mesh_up, (aabbminheight + aabbheight * cuspd_params.min_feature_height) * mesh_up);
 	// remap mean curvature to cut mesh
 	Eigen::VectorXd cut_mean_curvature(mean_curvature(inverse_index_map.array()));
 
-	/////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////// 
 	/// SPOKE FEATURE STUFF AND AUTOMATIC GINGIVA CUTTING ///
 	/////////////////////////////////////////////////////////
 
@@ -112,7 +139,7 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 	}
 }
 
-void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& features, Eigen::VectorXd& mean_curvature, const ToothSegmentation::CuspDetectionParams& cuspd_params, bool visualize_steps)
+void ToothSegmentation::computeMeanCurvature(const Mesh & mesh, Eigen::VectorXd & mean_curvature, const MeanCurvatureParams & mc_params, bool visualize_steps)
 {
 	// calculate mean curvature
 	std::cout << "- Calculating mean curvature...\n";
@@ -120,37 +147,27 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& features
 	igl::cotmatrix(mesh.vertices(), mesh.faces(), L);
 	igl::massmatrix(mesh.vertices(), mesh.faces(), igl::MASSMATRIX_TYPE_VORONOI, M);
 	igl::invert_diag(M, Minv);
-	Eigen::MatrixXd mean_curvature_normals = -Minv * (L * mesh.vertices());	
+	Eigen::MatrixXd mean_curvature_normals = -Minv * (L * mesh.vertices());
 
 	// smooth the mesh to make curvature estimate less noisy
 	Eigen::MatrixXd smoothed_vertices(mesh.vertices());
 	Eigen::MatrixXd smoothed_normals(mesh.normals());
-	if (cuspd_params.smoothing_steps > 0)
+	if (mc_params.smoothing_steps > 0)
 	{
-		std::cout << "- Smooothing the mesh to make the curvature estimate less noisy...\n";		
-		for (std::size_t i = 0; i < cuspd_params.smoothing_steps; ++i)
+		std::cout << "- Smooothing the mesh to make the curvature estimate less noisy...\n";
+		for (std::size_t i = 0; i < mc_params.smoothing_steps; ++i)
 		{
 			std::cout << "Iteration " << i << "\n";
-			smoothed_vertices.array() -= mean_curvature_normals.array() * cuspd_params.smoothing_step_size;
+			smoothed_vertices.array() -= mean_curvature_normals.array() * mc_params.smoothing_step_size;
 			igl::cotmatrix(smoothed_vertices, mesh.faces(), L);
 			igl::massmatrix(smoothed_vertices, mesh.faces(), igl::MASSMATRIX_TYPE_VORONOI, M);
 			igl::invert_diag(M, Minv);
-			mean_curvature_normals = -Minv * (L * smoothed_vertices);			
+			mean_curvature_normals = -Minv * (L * smoothed_vertices);
 		}
 	}
 
 	// recalculate normals
 	igl::per_vertex_normals(smoothed_vertices, mesh.faces(), smoothed_normals);
-
-	// vertices below min_feature_height are not considered
-	double aabbminheight = mesh.vertices()(Eigen::all, 1).minCoeff();
-	double aabbheight = mesh.vertices()(Eigen::all, 1).maxCoeff() - aabbminheight;
-	Eigen::VectorXd active_vertex_map = (((mesh.vertices()(Eigen::all, 1).array() - aabbminheight) / aabbheight) - cuspd_params.min_feature_height).cwiseSign().cwiseMax(0.0).matrix();
-	Eigen::VectorXi active_indices(static_cast<Eigen::DenseIndex>(active_vertex_map.sum() + 0.5));
-	Eigen::DenseIndex aiidx = 0;
-	for (Eigen::DenseIndex i = 0; i < active_vertex_map.rows(); ++i)
-		if (active_vertex_map(i) > 0.0)
-			active_indices[aiidx++] = i;
 
 	// calculate signed mean curvatures
 	Eigen::VectorXd mean_curvatures = ((mean_curvature_normals.array() * smoothed_normals.array()).matrix().rowwise().sum().array()).matrix();
@@ -158,21 +175,21 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& features
 	mean_curvature = mean_curvatures;
 
 	// remove outliers
-	double mean_mean_curvature = mean_curvatures(active_indices.array()).mean();
+	double mean_mean_curvature = mean_curvatures.mean();
 	Eigen::VectorXd mcdev = (mean_mean_curvature - mean_curvatures.array()).matrix();
 	double mcsdev = std::sqrt(mcdev.dot(mcdev) / static_cast<double>(mcdev.rows()));
 
 	// remove values with zscore > max_zscore
 	Eigen::VectorXd mc_zscore = ((mcdev.array() - mean_mean_curvature) / mcsdev).cwiseAbs().matrix();
 	for (Eigen::DenseIndex i = 0; i < mean_curvatures.rows(); ++i)
-		if (mc_zscore(i) > cuspd_params.max_zscore)
+		if (mc_zscore(i) > mc_params.max_zscore)
 			mean_curvatures(i) = mean_mean_curvature;
-	mean_mean_curvature = mean_curvatures(active_indices.array()).mean();
+	mean_mean_curvature = mean_curvatures.mean();
 	for (Eigen::DenseIndex i = 0; i < mean_curvatures.rows(); ++i)
-		if (mc_zscore(i) > cuspd_params.max_zscore)
+		if (mc_zscore(i) > mc_params.max_zscore)
 			mean_curvatures(i) = mean_mean_curvature;
 
-
+	mean_curvature = mean_curvatures;
 	std::cout << "Mean curvature standard deviation: " << mcsdev << "\n";
 	std::cout << "Mean curvature mean: " << mean_mean_curvature << "\n";
 	std::cout << "Mean curvature max zscore: " << mc_zscore.maxCoeff() << "\n";
@@ -180,24 +197,40 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& features
 
 	if (visualize_steps)
 	{
-		std::cout << "maxc " << mean_curvatures.maxCoeff() << "\n minc " << mean_curvatures.minCoeff() << "\n";
 		Eigen::MatrixXd C;
 		igl::opengl::glfw::Viewer viewer;
-		igl::jet(((mean_curvatures.array() - mean_curvatures(active_indices.array()).minCoeff()) / (mean_curvatures(active_indices.array()).maxCoeff() - mean_curvatures(active_indices.array()).minCoeff())).matrix().cwiseMax(0.0), true, C);
+		igl::jet(((mean_curvatures.array() - mean_curvature.minCoeff()) / (mean_curvatures.maxCoeff() - mean_curvatures.minCoeff())).matrix().cwiseMax(0.0), true, C);
 		//igl::jet(mc_zscore, true, C);
 		viewer.data().set_mesh(mesh.vertices(), mesh.faces());
 		viewer.data().set_colors(C);
 		viewer.launch();
-	}	
+	}
+}
+
+void ToothSegmentation::computeCusps(const Mesh & mesh, const Eigen::Vector3d & mesh_up, const Eigen::VectorXd & mean_curvature, Eigen::VectorXi & features, const CuspDetectionParams & cuspd_params, bool visualize_steps)
+{
+	// vertices below min_feature_height are not considered
+	Eigen::VectorXd vertex_heights(mesh.vertices().rows());
+	for (Eigen::Index i = 0; i < mesh.vertices().rows(); ++i)
+		vertex_heights(i) = mesh.vertices()(i, Eigen::all).dot(mesh_up.transpose());
+
+	double aabbminheight = vertex_heights.minCoeff();
+	double aabbheight = vertex_heights.maxCoeff() - aabbminheight;
+	Eigen::VectorXd active_vertex_map = (((vertex_heights.array() - aabbminheight) / aabbheight) - cuspd_params.min_feature_height).cwiseSign().cwiseMax(0.0).matrix();
+	Eigen::VectorXi active_indices(static_cast<Eigen::DenseIndex>(active_vertex_map.sum() + 0.5));
+	Eigen::DenseIndex aiidx = 0;
+	for (Eigen::DenseIndex i = 0; i < active_vertex_map.rows(); ++i)
+		if (active_vertex_map(i) > 0.0)
+			active_indices[aiidx++] = i;
 
 	// compute weights
 	std::cout << "- Calculating feature weights...\n";
 	// weighted average between negative mean curvature and y height. the result is multiplied by 0 if y height < cuspd_params.min_feature_height
-	double active_min_mean_curvature = mean_curvatures(active_indices.array()).minCoeff();
-	double active_max_mean_curvature = mean_curvatures(active_indices.array()).maxCoeff();
-	Eigen::VectorXd curv_weights = (((mean_curvatures.array() - active_min_mean_curvature) / (active_max_mean_curvature - active_min_mean_curvature)) * active_vertex_map.array()).matrix();// +(1.0 - active_vertex_map.array()) * active_min_mean_curvature).matrix();
+	double active_min_mean_curvature = mean_curvature(active_indices.array()).minCoeff();
+	double active_max_mean_curvature = mean_curvature(active_indices.array()).maxCoeff();
+	Eigen::VectorXd curv_weights = (((mean_curvature.array() - active_min_mean_curvature) / (active_max_mean_curvature - active_min_mean_curvature)) * active_vertex_map.array()).matrix();
 	double minheight = aabbminheight + aabbheight * cuspd_params.min_feature_height;
-	Eigen::VectorXd height_weights = (((mesh.vertices()(Eigen::all, 1).array() - minheight) / (mesh.vertices()(Eigen::all, 1).array().maxCoeff() - minheight)) * active_vertex_map.array()).matrix();// +(1.0 - active_vertex_map.array()) * minheight).matrix();
+	Eigen::VectorXd height_weights = (((vertex_heights.array() - minheight) / (vertex_heights.maxCoeff() - minheight)) * active_vertex_map.array()).matrix();
 	// pow the weights
 	curv_weights = curv_weights.cwiseMax(0.0).array().pow(cuspd_params.curve_exp).matrix();
 	height_weights = height_weights.cwiseMax(0.0).array().pow(cuspd_params.height_exp).matrix();
@@ -209,11 +242,6 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& features
 
 	// renormalize weights
 	weights = (weights.array() - weights.minCoeff()) / (weights.maxCoeff() - weights.minCoeff());
-
-	/*for (Eigen::DenseIndex i = 0; i < weights.rows(); ++i)
-	{
-		std::cout << weights(i) << "\n";
-	}*/
 
 	if (visualize_steps)
 	{
@@ -247,7 +275,7 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& features
 		{
 			local_maxima.push_back(std::make_pair(i, weights(i)));
 		}
-	}	
+	}
 
 	std::cout << "Local maxima found: " << local_maxima.size() << "\n";
 
@@ -294,21 +322,10 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& features
 
 	std::vector<std::pair<long long, double>> rad_search_res;
 	Eigen::RowVector3d mean;
-	double normalizer;	
+	double normalizer;
 	Eigen::DenseIndex nbidx;
 	for (std::size_t t = 0; t < cuspd_params.ms_max_iterations; ++t)
 	{
-		/*if (visualize_steps)
-		{
-			Eigen::MatrixXd C;
-			igl::jet(weights, false, C);
-			igl::opengl::glfw::Viewer viewer;
-			viewer.data().set_mesh(mesh.vertices(), mesh.faces());
-			viewer.data().set_colors(C);
-			viewer.data().point_size = 2.0;
-			viewer.data().set_points(particles, Eigen::RowVector3d(1.0, 1.0, 1.0));
-			viewer.launch();
-		}*/
 		std::cout << "Mean-shift iteration " << t + 1 << "\n";
 
 		shift_vectors.setZero();
@@ -322,26 +339,16 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& features
 			kdtree.index->radiusSearch(querypt, search_rad, rad_search_res, radsearchparam);
 
 			mean.setZero();
-			//normalizer = 0.0;
 			normalizer = std::numeric_limits<double>::lowest();
 			for (std::size_t r = 0; r < rad_search_res.size(); ++r)
 			{
 				nbidx = rad_search_res[r].first;
-				///*auto dvec = (active_vertices(nbidx, Eigen::all) - particles(p, Eigen::all));
-				//double d2 = dvec.dot(dvec);*/
-				//double w = active_weights(nbidx) / static_cast<double>(rad_search_res.size());
-				//mean += active_vertices(nbidx, Eigen::all) * w;
-				//normalizer += w;
 				if (active_weights(nbidx) > normalizer)
 				{
 					mean = active_vertices(nbidx, Eigen::all);
 					normalizer = active_weights(nbidx);
 				}
 			}
-			/*if(normalizer > 0.0)
-				shift_vectors(p, Eigen::all) = (mean / normalizer) - particles(p, Eigen::all);
-			else
-				shift_vectors(p, Eigen::all).setZero();*/
 			shift_vectors(p, Eigen::all) = mean - particles(p, Eigen::all);
 		}
 
@@ -354,18 +361,6 @@ void ToothSegmentation::computeCusps(const Mesh& mesh, Eigen::VectorXi& features
 			break;
 		}
 	}
-
-	/*if (visualize_steps)
-	{
-		Eigen::MatrixXd C;
-		igl::jet(weights, false, C);
-		igl::opengl::glfw::Viewer viewer;
-		viewer.data().set_mesh(mesh.vertices(), mesh.faces());
-		viewer.data().set_colors(C);
-		viewer.data().point_size = 5.0;
-		viewer.data().set_points(particles, Eigen::RowVector3d(1.0, 1.0, 1.0));
-		viewer.launch();
-	}*/
 
 	std::vector<bool> duplmap;
 	for (Eigen::DenseIndex i = 0; i < particles.rows(); ++i)
@@ -445,7 +440,6 @@ void ToothSegmentation::calculateHarmonicField(const Mesh& mesh, const Eigen::Ve
 	for (Eigen::Index i = 0; i < mesh.vertices().rows(); ++i)
 	{
 		double iweight = 0.0;
-		//double curv_weight = calcCurvatureWeight(i, mean_curvature, min_curvature, max_curvature, hf_params.lambda);
 		for (Eigen::Index a = 0; a < mesh.adjacency_list()[i].size(); ++a)
 		{
 			Eigen::Index j = mesh.adjacency_list()[i][a];			
@@ -633,4 +627,18 @@ double ToothSegmentation::calcCurvatureWeight(const Eigen::Index & i, const Eige
 		return hf_params.gamma_low;
 	else
 		return hf_params.gamma_high;
+}
+
+Eigen::Vector3d ToothSegmentation::estimateUpVector(const Mesh & mesh, const Eigen::Vector3d & approximate_up)
+{
+	Eigen::MatrixXd zero_mean_data(mesh.vertices().rowwise() - mesh.vertices().colwise().mean());
+	Eigen::JacobiSVD<Eigen::MatrixXd> svd(zero_mean_data, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	return (svd.matrixV().col(2) * (svd.matrixV().col(2).dot(approximate_up) >= 0.0 ? 1.0 : -1.0)).normalized();
+}
+
+Eigen::Vector3d ToothSegmentation::estimateUpVector(const Eigen::MatrixXd& points, const Eigen::Vector3d & approximate_up)
+{
+	Eigen::MatrixXd zero_mean_data(points.rowwise() - points.colwise().mean());
+	Eigen::JacobiSVD<Eigen::MatrixXd> svd(zero_mean_data, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	return (svd.matrixV().col(2) * (svd.matrixV().col(2).dot(approximate_up) >= 0.0 ? 1.0 : -1.0)).normalized();
 }

@@ -23,12 +23,6 @@ public:
 		double height_exp;
 		// fraction of bounding box height e [0,1] from jaw
 		double min_feature_height;
-		// smoothing step size
-		double smoothing_step_size;
-		// number of smoothing steps
-		double smoothing_steps;
-		// outlier detection
-		double max_zscore;
 		// fraction of local maxima to mean shift
 		double ms_frac;
 		// mean shift bandwidth param
@@ -55,19 +49,34 @@ public:
 		double concavity_threshold;
 	};
 
+	struct MeanCurvatureParams
+	{
+		// smoothing step size
+		double smoothing_step_size;
+		// number of smoothing steps
+		double smoothing_steps;
+		// outlier detection
+		double max_zscore;
+	};
+
 	static void segmentTeethFromMesh(const Mesh& mesh,
-		const Eigen::Vector3d& mesh_up,
+		const Eigen::Vector3d& approximate_mesh_up,
 		const Eigen::Vector3d& mesh_right,
 		std::vector<Mesh>& tooth_meshes,
 		const CuspDetectionParams& cuspd_params = {0.4, 1000, 0.5},
 		const HarmonicFieldParams& hf_params = { 1.0, 1.0 },
-		bool visualize_steps = false
-		);
+		const MeanCurvatureParams& mc_params = {0.00025, 50, 2.0},
+		bool visualize_steps = false);
 
 private:
-	static void computeCusps(const Mesh& mesh,
-		Eigen::VectorXi& features,
+	static void computeMeanCurvature(const Mesh& mesh,
 		Eigen::VectorXd& mean_curvature,
+		const MeanCurvatureParams& mc_params,
+		bool visualize_steps = false);
+	static void computeCusps(const Mesh& mesh,
+		const Eigen::Vector3d& mesh_up,
+		const Eigen::VectorXd& mean_curvature,
+		Eigen::VectorXi& features,
 		const CuspDetectionParams& cuspd_params,
 		bool visualize_steps = false);
 	static void calculateHarmonicField(const Mesh& mesh,
@@ -83,8 +92,15 @@ private:
 		Eigen::VectorXi& index_map,
 		const Eigen::Vector3d& normal,
 		const Eigen::Vector3d& plane_point);
-	static double calcCotanWeight(const Eigen::Index& i, const Eigen::Index& j, const Mesh& mesh);
-	static double calcCurvatureWeight(const Eigen::Index& i, const Eigen::Index& j, const Eigen::VectorXd& mean_curvature, const HarmonicFieldParams& hf_params);
+	static double calcCotanWeight(const Eigen::Index& i,
+		const Eigen::Index& j,
+		const Mesh& mesh);
+	static double calcCurvatureWeight(const Eigen::Index& i,
+		const Eigen::Index& j,
+		const Eigen::VectorXd& mean_curvature,
+		const HarmonicFieldParams& hf_params);
+	static Eigen::Vector3d estimateUpVector(const Mesh& mesh, const Eigen::Vector3d& approximate_up);
+	static Eigen::Vector3d estimateUpVector(const Eigen::MatrixXd& points, const Eigen::Vector3d& approximate_up);
 };
 
 
