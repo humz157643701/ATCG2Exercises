@@ -24,15 +24,19 @@ public:
 		// fraction of bounding box height e [0,1] from jaw
 		double min_feature_height;
 		// fraction of local maxima to mean shift
-		double ms_frac;
-		// mean shift bandwidth param
-		double ms_window_size; // [0, 1] fraction of bounding box diagonal
+		double os_frac;
+		// optimum shift bandwidth param
+		double os_window_size; // [0, 1] fraction of bounding box diagonal
 		// min change
-		double ms_min_total_shift;
+		double os_min_total_shift;
 		// max iterations
-		std::size_t ms_max_iterations;
+		std::size_t os_max_iterations;
 		// feature collapse distance
-		double ms_ft_collapse_dist;
+		double ft_collapse_dist;
+		// small feature removal window size
+		double small_ft_window_size;
+		// small feature removal threshold
+		double small_ft_threshold;
 	};
 
 	struct ToothFeature

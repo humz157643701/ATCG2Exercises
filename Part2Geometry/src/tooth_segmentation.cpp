@@ -239,7 +239,6 @@ void ToothSegmentation::computeCusps(const Mesh & mesh, const Eigen::Vector3d & 
 	height_weights = (height_weights.array() - height_weights(active_indices).minCoeff()) / (height_weights(active_indices).maxCoeff() - height_weights(active_indices).minCoeff());
 	// combine weights
 	Eigen::VectorXd weights = ((1.0 - cuspd_params.alpha) * curv_weights.array().cwiseMax(0.0).pow(cuspd_params.curve_exp) + cuspd_params.alpha * height_weights.array().cwiseMax(0.0).pow(cuspd_params.height_exp)).matrix();
-
 	// renormalize weights
 	weights = (weights.array() - weights.minCoeff()) / (weights.maxCoeff() - weights.minCoeff());
 
@@ -254,6 +253,7 @@ void ToothSegmentation::computeCusps(const Mesh & mesh, const Eigen::Vector3d & 
 		viewer.launch();
 	}
 
+	// non-maximum suppression
 	std::cout << "- Searching local maxima...\n";
 
 	size_t num_local_maxima = 0;
@@ -284,34 +284,34 @@ void ToothSegmentation::computeCusps(const Mesh & mesh, const Eigen::Vector3d & 
 		return a.second > b.second;
 	});
 
-	// extract a fraction of the best local maxima for mean shift
-	Eigen::DenseIndex num_filtered_maxima = std::min(std::max(static_cast<Eigen::DenseIndex>(cuspd_params.ms_frac * static_cast<double>(local_maxima.size()) + 0.5), static_cast<Eigen::DenseIndex>(1)), static_cast<Eigen::DenseIndex>(local_maxima.size()));
+	// extract a fraction of the best local maxima for optimum shift
+	Eigen::DenseIndex num_filtered_maxima = std::min(std::max(static_cast<Eigen::DenseIndex>(cuspd_params.os_frac * static_cast<double>(local_maxima.size()) + 0.5), static_cast<Eigen::DenseIndex>(1)), static_cast<Eigen::DenseIndex>(local_maxima.size()));
 	Eigen::MatrixXd particles(num_filtered_maxima, 3);
 	for (Eigen::DenseIndex p = 0; p < num_filtered_maxima; ++p)
 	{
 		particles.row(p) = mesh.vertices().row(local_maxima[p].first);
 	}
 
-	std::cout << "Local maxima considered for mean shift: " << particles.rows() << "\n";
+	std::cout << "Local maxima considered for optimum shift: " << particles.rows() << "\n";
 
 	// to make indexing faster make a compact copy of the active vertices and weights
 	Eigen::MatrixXd active_vertices(mesh.vertices()(active_indices, Eigen::all));
 	Eigen::VectorXd active_weights(weights(active_indices));
 	Eigen::VectorXd inverse_active_weights((1.0 - active_weights.array()).matrix());
 
-	// build kd-tree for mean shift
+	// build kd-tree for optimum shift
 	kdtree_t kdtree(3, active_vertices);
 	kdtree.index->buildIndex();
 	const nanoflann::SearchParams radsearchparam(32, 0.0, false);
 
-	// mean shift
+	// optimum shift
 	// window size
 	Eigen::Vector3d aabb_min = active_vertices.colwise().minCoeff().transpose();
 	Eigen::Vector3d aabb_max = active_vertices.colwise().maxCoeff().transpose();
 	double aabb_diag = (aabb_max - aabb_min).norm();
-	double h = aabb_diag * cuspd_params.ms_window_size;
+	double h = aabb_diag * cuspd_params.os_window_size;
 	double search_rad = (2.0 * h) * (2.0 * h);
-	double mswvar = 2.0 * h * h;
+	//double mswvar = 2.0 * h * h;
 
 	// accumulates total amount of shift
 	double total_shift;
@@ -324,9 +324,9 @@ void ToothSegmentation::computeCusps(const Mesh & mesh, const Eigen::Vector3d & 
 	Eigen::RowVector3d mean;
 	double normalizer;
 	Eigen::DenseIndex nbidx;
-	for (std::size_t t = 0; t < cuspd_params.ms_max_iterations; ++t)
+	for (std::size_t t = 0; t < cuspd_params.os_max_iterations; ++t)
 	{
-		std::cout << "Mean-shift iteration " << t + 1 << "\n";
+		std::cout << "Optimum-shift iteration " << t + 1 << "\n";
 
 		shift_vectors.setZero();
 		for (Eigen::DenseIndex p = 0; p < particles.rows(); ++p)
@@ -356,12 +356,14 @@ void ToothSegmentation::computeCusps(const Mesh & mesh, const Eigen::Vector3d & 
 		particles.array() += shift_vectors.array();
 		total_shift = shift_vectors.rowwise().norm().sum();
 
-		if (total_shift < cuspd_params.ms_min_total_shift)
+		if (total_shift < cuspd_params.os_min_total_shift)
 		{
 			break;
 		}
 	}
 
+	// collapse features with distance < threshold
+	std::cout << "Merging features...\n";
 	std::vector<bool> duplmap;
 	for (Eigen::DenseIndex i = 0; i < particles.rows(); ++i)
 	{
@@ -374,7 +376,7 @@ void ToothSegmentation::computeCusps(const Mesh & mesh, const Eigen::Vector3d & 
 		{
 			if (i != j && !duplmap[i])
 			{
-				if (((particles(i, Eigen::all) - particles(j, Eigen::all)).norm() < (cuspd_params.ms_ft_collapse_dist * aabb_diag)) && (!duplmap[j]))
+				if (((particles(i, Eigen::all) - particles(j, Eigen::all)).norm() < (cuspd_params.ft_collapse_dist * aabb_diag)) && (!duplmap[j]))
 				{
 					duplmap[j] = true;
 				}
@@ -403,17 +405,54 @@ void ToothSegmentation::computeCusps(const Mesh & mesh, const Eigen::Vector3d & 
 		}
 	}
 
+	// remove features with low local neighborhood (essentially removes too small features)
+	std::cout << "Removing small features...\n";
+	double sftr_window_size = aabb_diag * cuspd_params.small_ft_window_size;
+	search_rad = sftr_window_size * sftr_window_size;
+	double ft_mean = weights(features.array()).mean();
+	std::vector<Eigen::DenseIndex> final_features;
+	//Eigen::VectorXd sizeweight(features.rows());
+	for (Eigen::DenseIndex i = 0; i < features.rows(); ++i)
+	{
+		rad_search_res.clear();
+		querypt[0] = mesh.vertices()(features(i), 0);
+		querypt[1] = mesh.vertices()(features(i), 1);
+		querypt[2] = mesh.vertices()(features(i), 2);
+
+		mesh.kdtree().index->radiusSearch(querypt, search_rad, rad_search_res, radsearchparam);
+
+		double mean_nb_score = 0.0;
+		for (size_t s = 0; s < rad_search_res.size(); ++s)
+		{
+			if (rad_search_res[s].first != features(i))
+				mean_nb_score += weights(rad_search_res[s].first);
+		}
+		mean_nb_score /= std::max(rad_search_res.size() - 1, 1ull);
+
+		// if mean neighborhood score is less than center feature score - threshold, remove this feature
+		if (ft_mean - mean_nb_score <= cuspd_params.small_ft_threshold)
+			final_features.push_back(features(i));
+
+		//sizeweight(i) = weights(features(i)) - mean_nb_score;
+	}
+	features.resize(final_features.size());
+	for (size_t i = 0; i < final_features.size(); ++i)
+		features(i) = final_features[i];
+
+	
 	std::cout << "Number of features found: " << features.rows() << "\n";
 
 	if (visualize_steps)
 	{
 		Eigen::MatrixXd C;
+		//Eigen::MatrixXd CF;
 		igl::jet(weights, false, C);
+		//igl::jet(sizeweight, true, CF);
 		igl::opengl::glfw::Viewer viewer;
 		viewer.data().set_mesh(mesh.vertices(), mesh.faces());
 		viewer.data().set_colors(C);
 		viewer.data().point_size = 7.0;
-		viewer.data().set_points(mesh.vertices()(features.array(), Eigen::all), Eigen::RowVector3d(1.0, 1.0, 1.0));
+		viewer.data().set_points(mesh.vertices()(features.array(), Eigen::all), Eigen::RowVector3d{ 1.0, 1.0, 1.0 });
 		viewer.launch();
 	}
 }

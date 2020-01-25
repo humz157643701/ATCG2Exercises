@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
 			Eigen::Vector3d{ -1.0, 0.0, 0.0 },
 			teeth,
 			ToothSegmentation::CuspDetectionParams{
-				0.7, // curvature <-> height
+				0.6, // curvature <-> height
 				0.85, // curvature exponent
 				0.8, // height exponent
 				0.5, // min feature height
@@ -70,7 +70,9 @@ int main(int argc, char* argv[])
 				0.012, // mean shift window size
 				1e-4, // min total shift before convergence
 				1000, // max mean shift iterations
-				0.003 // feature collapse distance
+				0.003, // feature collapse distance
+				0.01, // small feature detection window size
+				0.2 // small feature detection threshold
 			},
 			ToothSegmentation::HarmonicFieldParams{
 				1.0,	// w
