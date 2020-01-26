@@ -78,40 +78,41 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 	// remap mean curvature to cut mesh
 	Eigen::VectorXd cut_mean_curvature(mean_curvature(inverse_index_map.array()));
 
-	///////////////////////////////////////////////////////// 
-	/// SPOKE FEATURE STUFF AND AUTOMATIC GINGIVA CUTTING ///
-	/////////////////////////////////////////////////////////
-	computeCusps(working_mesh, cusps, mean_curvature, cuspd_params, true);
-
-
-
 	/////////////////////////////////////////////////////////
 	/// SPOKE FEATURE STUFF AND AUTOMATIC GINGIVA CUTTING ///
 	/////////////////////////////////////////////////////////
-	auto planeresult = fitPlane(cusps, working_mesh);
+	auto planeresult = fitPlane(cusps, working_mesh, index_map);
 	//planeresult.first is normal, planeresult.second is point on plane
 	// Gingiva cut
-
-	auto featuregroups = segmentFeatures(cusps, mean_curvature, working_mesh);
+	working_mesh.recalculateKdTree();
+	auto featuregroups = segmentFeatures(cusps, mean_curvature, working_mesh, index_map);
 
 	// assign features to teeth
-	std::vector<ToothFeature> tooth_features{
-		{{index_map(228824), index_map(20453), index_map(0), index_map(0)}, 2},
-		{{index_map(9335), index_map(158157), index_map(165224), index_map(163144)}, 4},
-		{{index_map(3653), index_map(155934), index_map(0), index_map(0)}, 2},
-		{{index_map(154708), index_map(465), index_map(0), index_map(0)}, 2},
-		{{index_map(157325), index_map(4649), index_map(0), index_map(0)}, 2},
-		{{index_map(156244), index_map(1727), index_map(0), index_map(0)}, 2},
-		{{index_map(154437), index_map(154323), index_map(0), index_map(0)}, 2},
-		{{index_map(154374), index_map(281), index_map(0), index_map(0)}, 2},
-		{{index_map(6753), index_map(158652), index_map(0), index_map(0)}, 2},
-		{{index_map(158728), index_map(160864), index_map(0), index_map(0)}, 2},
-		{{index_map(2179), index_map(2224), index_map(0), index_map(0)}, 2},
-		//{{index_map(5775), index_map(160101), index_map(0), index_map(0)}, 2},
-		{{index_map(155337), index_map(4017), index_map(5812), index_map(8910)}, 4},
-		{{index_map(16741), index_map(174894), index_map(160439), index_map(170818)}, 4}
-	};
-
+	std::vector<ToothFeature> tooth_features;
+	//{
+	//	{{index_map(228824), index_map(20453), index_map(0), index_map(0)}, 2},
+	//	{{index_map(9335), index_map(158157), index_map(165224), index_map(163144)}, 4},
+	//	{{index_map(3653), index_map(155934), index_map(0), index_map(0)}, 2},
+	//	{{index_map(154708), index_map(465), index_map(0), index_map(0)}, 2},
+	//	{{index_map(157325), index_map(4649), index_map(0), index_map(0)}, 2},
+	//	{{index_map(156244), index_map(1727), index_map(0), index_map(0)}, 2},
+	//	{{index_map(154437), index_map(154323), index_map(0), index_map(0)}, 2},
+	//	{{index_map(154374), index_map(281), index_map(0), index_map(0)}, 2},
+	//	{{index_map(6753), index_map(158652), index_map(0), index_map(0)}, 2},
+	//	{{index_map(158728), index_map(160864), index_map(0), index_map(0)}, 2},
+	//	{{index_map(2179), index_map(2224), index_map(0), index_map(0)}, 2},
+	//	//{{index_map(5775), index_map(160101), index_map(0), index_map(0)}, 2},
+	//	{{index_map(155337), index_map(4017), index_map(5812), index_map(8910)}, 4},
+	//	{{index_map(16741), index_map(174894), index_map(160439), index_map(170818)}, 4}
+	//};
+	for (auto fg : featuregroups)
+	{
+		tooth_features.push_back({ {}, Eigen::DenseIndex(fg.size()) });
+		for (auto f : fg)
+		{
+			tooth_features.back().featurePointIndices.push_back(f);
+		}
+	}
 	
 	Eigen::Index tidx = 0;
 	for (std::size_t i = 0; i < tooth_features.size(); ++i)
@@ -697,12 +698,13 @@ Eigen::Vector3d ToothSegmentation::estimateUpVector(const Eigen::MatrixXd& point
 	Eigen::JacobiSVD<Eigen::MatrixXd> svd(zero_mean_data, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	return (svd.matrixV().col(2) * (svd.matrixV().col(2).dot(approximate_up) >= 0.0 ? 1.0 : -1.0)).normalized();
 }
-std::pair<Eigen::Vector3d, Eigen::Vector3d> ToothSegmentation::fitPlane(const Eigen::VectorXi& featureindices, const Mesh& mesh)
+std::pair<Eigen::Vector3d, Eigen::Vector3d> ToothSegmentation::fitPlane(const Eigen::VectorXi& featureindices, const Mesh& mesh, Eigen::VectorXi idmap)
 {
 	Eigen::MatrixXd features(featureindices.rows(), 3);// = mesh.vertices();
 	for (size_t idx = 0; idx < featureindices.size(); ++idx)
 	{
-		features.row(idx) = mesh.vertices().row(featureindices(idx));
+		std::cout << featureindices(idx) << std::endl;
+		features.row(idx) = mesh.vertices().row(idmap(featureindices(idx)));
 	}
 	Eigen::Vector3d center = features.colwise().mean();
 	auto normed = Eigen::MatrixXd(features);
@@ -713,8 +715,14 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> ToothSegmentation::fitPlane(const Ei
 	
 }
 
-std::vector<std::vector<size_t>> ToothSegmentation::segmentFeatures(const Eigen::VectorXi& featureindices, Eigen::VectorXd meancurvature, const Mesh& mesh)
+std::vector<std::vector<size_t>> ToothSegmentation::segmentFeatures(const Eigen::VectorXi& featureindices, Eigen::VectorXd meancurvature, const Mesh& mesh, Eigen::VectorXi idmap)
 {
+	auto Vs = mesh.vertices();
+	auto Fs = mesh.faces();
+	auto Ns = mesh.normals();
+	Vs *= Eigen::MatrixXd(Eigen::AngleAxis<double>(M_PI, Eigen::Vector3d{ 0,0,1 }).toRotationMatrix());
+	Mesh newm = Mesh(Vs, Ns, Fs);
+	newm.recalculateKdTree();
 	//############ Calculating curve, 3rd degreee poly
 	Eigen::MatrixXd M(4, 4);
 	M.fill(0);
@@ -727,7 +735,7 @@ std::vector<std::vector<size_t>> ToothSegmentation::segmentFeatures(const Eigen:
 	Eigen::MatrixXd features(featureindices.rows(), 3);// = mesh.vertices();
 	for (size_t idx=0; idx<featureindices.size();++idx)
 	{
-		features.row(idx) = mesh.vertices().row(featureindices(idx));
+		features.row(idx) = newm.vertices().row(idmap(featureindices(idx)));
 	}
 	for (auto& row : features.rowwise())
 	{
@@ -771,9 +779,9 @@ std::vector<std::vector<size_t>> ToothSegmentation::segmentFeatures(const Eigen:
 	spokes.reserve(100);
 	std::vector<Eigen::Vector3d> curvepoints;
 	double fpymax = features.colwise().maxCoeff()(1);
-	double verticesminy = mesh.vertices().colwise().minCoeff()(1);
+	double verticesminy = newm.vertices().colwise().minCoeff()(1);
 	std::cout << "verticesminy: " << verticesminy << std::endl;
-	double stepsize = std::abs(verticesminy - mesh.vertices().colwise().maxCoeff()(1)) / 200.0;
+	double stepsize = std::abs(verticesminy - newm.vertices().colwise().maxCoeff()(1)) / 200.0;
 	std::cout << "fpymax: " << fpymax << std::endl;
 	double curvelength = (max_x - min_x);
 	double spokeinterdistance = curvelength / (14*10.0);
@@ -825,10 +833,10 @@ std::vector<std::vector<size_t>> ToothSegmentation::segmentFeatures(const Eigen:
 				std::vector<std::pair<Eigen::Index, double>> srchres;
 				for (double y = pos(1); y >= verticesminy; y -= stepsize)
 				{
-					auto neighbor = mesh.kdtree().index->radiusSearch(pos.data(), stepsize * stepsize*0.5, srchres, {});
+					auto neighbor = newm.kdtree().index->radiusSearch(pos.data(), stepsize * stepsize, srchres, {});
 					if (srchres.size() > 0)
 					{
-						auto r = mesh.vertices()(srchres.front().first, 1);
+						auto r = newm.vertices()(srchres.front().first, 1);
 						curves.push_back(meancurvature[srchres.front().first] );
 						//std::cout << " srchres size: " << srchres.size() << "y: " << pos << " id: "<<spokes[outer][inner].second<< std::endl;
 
@@ -878,7 +886,7 @@ std::vector<std::vector<size_t>> ToothSegmentation::segmentFeatures(const Eigen:
 	p1d::Persistence1D pers1d;
 	pers1d.RunPersistence(spokeheights);
 	std::vector<p1d::TPairedExtrema> extrema;
-	pers1d.GetPairedExtrema(extrema, 0.55);
+	pers1d.GetPairedExtrema(extrema, 0.7);
 	std::sort(extrema.begin(), extrema.end(), [](p1d::TPairedExtrema& a, p1d::TPairedExtrema& b) {return a.MinIndex < b.MinIndex; });
 	
 	Eigen::MatrixXd spokepoints(30 * finalspokes.size() + 1, 3);
@@ -962,6 +970,7 @@ std::vector<std::vector<size_t>> ToothSegmentation::segmentFeatures(const Eigen:
 			if (std::signbit(norm1.cross(pos)(1)) != std::signbit(norm2.cross(pos2)(1)))
 			{
 				group1.push_back({ fp.transpose() + Eigen::Vector3d{ 0, 1, 0 }, idx});
+				grpp.push_back(group1.back().first);
 			}
 			else
 			{
@@ -982,8 +991,41 @@ std::vector<std::vector<size_t>> ToothSegmentation::segmentFeatures(const Eigen:
 			{
 				continue;
 			}
-			featuregroups.back().push_back(featureindices(fp.second));
+			featuregroups.back().push_back(idmap(featureindices(fp.second)));
 		}
+
+		int x1 = 0;
+		for (double x = -1.5; x <= 1.5; x += 0.1)
+		{
+			Eigen::Vector3d pos = finalspokes[extremaindices[s]].second + (finalspokes[extremaindices[s]].first * x * 5); //finalspokes[outer].second + (finalspokes[outer].first * x*5); //
+			spokps.push_back(pos);
+			pos = finalspokes[extremaindices[s+1]].second + (finalspokes[extremaindices[s+1]].first * x * 5); //finalspokes[outer].second + (finalspokes[outer].first * x*5); //
+			spokps.push_back(pos);
+			x1++;
+		}
+
+		Eigen::MatrixXd pb1(spokps.size(), 3);
+		Eigen::MatrixXd pb2(grpp.size(), 3);
+		for (int x = 0; x < spokps.size(); ++x)
+		{
+			pb1.row(x) = spokps[x];
+		}
+		for (int x = 0; x < grpp.size(); ++x)
+		{
+			pb2.row(x) = grpp[x];
+		}
+
+		//igl::opengl::glfw::Viewer viewer2;
+		//viewer2.data().set_mesh(newm.vertices(), newm.faces());
+		//viewer2.data().set_colors(Eigen::RowVector3d(1, 1, 0.5));// Eigen::RowVector3d(1, 0, 1));
+		//viewer2.data().add_points(features, Eigen::RowVector3d(1, 0, 0));
+		//viewer2.data().add_points(pb1, Eigen::RowVector3d(0, 1, 1));
+		//viewer2.data().add_points(pb2, Eigen::RowVector3d(0, 1, 0));
+
+		//viewer2.data().point_size = 10;
+		//viewer2.launch();
+
+
 	}
 	std::cout << "spoke curvature avg: " << memeavg/double(extrema.size()) << std::endl;
 	std::vector<Eigen::MatrixXd> results;
@@ -995,7 +1037,7 @@ std::vector<std::vector<size_t>> ToothSegmentation::segmentFeatures(const Eigen:
 	}
 	results.push_back(spokepoints);
 	igl::opengl::glfw::Viewer viewer2;
-	viewer2.data().set_mesh(mesh.vertices(), mesh.faces());
+	viewer2.data().set_mesh(newm.vertices(), newm.faces());
 	viewer2.data().set_colors(Eigen::RowVector3d(1, 1, 0.5));// Eigen::RowVector3d(1, 0, 1));
 	viewer2.data().add_points(features, Eigen::RowVector3d(1, 0, 0));
 	viewer2.data().add_points(results.front(), Eigen::RowVector3d(0, 1, 1));

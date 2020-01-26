@@ -41,7 +41,7 @@ public:
 
 	struct ToothFeature
 	{
-		Eigen::DenseIndex featurePointIndices[4];
+		std::vector<Eigen::DenseIndex> featurePointIndices;
 		Eigen::DenseIndex numFeaturePoints;
 	};
 
@@ -107,9 +107,9 @@ private:
 	static Eigen::Vector3d estimateUpVector(const Mesh& mesh, const Eigen::Vector3d& approximate_up);
 	static Eigen::Vector3d estimateUpVector(const Eigen::MatrixXd& points, const Eigen::Vector3d& approximate_up);
 
-	static std::pair<Eigen::Vector3d, Eigen::Vector3d> fitPlane(const Eigen::VectorXi& featureindices, const Mesh& mesh);
+	static std::pair<Eigen::Vector3d, Eigen::Vector3d> fitPlane(const Eigen::VectorXi& featureindices, const Mesh& mesh, Eigen::VectorXi idmap);
 
-	static std::vector<std::vector<size_t>> segmentFeatures(const Eigen::VectorXi& featureindices, Eigen::VectorXd meancurvature, const Mesh& mesh);
+	static std::vector<std::vector<size_t>> segmentFeatures(const Eigen::VectorXi& featureindices, Eigen::VectorXd meancurvature, const Mesh& mesh, Eigen::VectorXi idmap);
 
 };
 
