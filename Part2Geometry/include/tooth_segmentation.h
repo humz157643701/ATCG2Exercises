@@ -96,6 +96,7 @@ private:
 		Eigen::VectorXi& index_map,
 		const Eigen::Vector3d& normal,
 		const Eigen::Vector3d& plane_point);
+
 	static double calcCotanWeight(const Eigen::Index& i,
 		const Eigen::Index& j,
 		const Mesh& mesh);
@@ -105,6 +106,11 @@ private:
 		const HarmonicFieldParams& hf_params);
 	static Eigen::Vector3d estimateUpVector(const Mesh& mesh, const Eigen::Vector3d& approximate_up);
 	static Eigen::Vector3d estimateUpVector(const Eigen::MatrixXd& points, const Eigen::Vector3d& approximate_up);
+
+	static std::pair<Eigen::Vector3d, Eigen::Vector3d> fitPlane(const Eigen::VectorXi& featureindices, const Mesh& mesh);
+
+	static std::vector<std::vector<size_t>> segmentFeatures(const Eigen::VectorXi& featureindices, Eigen::VectorXd meancurvature, const Mesh& mesh);
+
 };
 
 
