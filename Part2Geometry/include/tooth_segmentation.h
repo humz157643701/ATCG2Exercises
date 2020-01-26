@@ -77,9 +77,9 @@ private:
 		const Eigen::Vector3d& plane_point);
 	static double calcCotanWeight(const Eigen::Index& i, const Eigen::Index& j, const Mesh& mesh);
 
-	static std::pair<Eigen::Vector3d, Eigen::Vector3d> fitPlane(const Eigen::MatrixXd& features);
+	static std::pair<Eigen::Vector3d, Eigen::Vector3d> fitPlane(const Eigen::VectorXi& featureindices, const Mesh& mesh);
 
-	static std::vector<Eigen::MatrixXd> segmentFeatures(const Eigen::MatrixXd& features, const Eigen::MatrixXd curveparams, double curvey, const Mesh& mesh);
+	static std::vector<std::vector<size_t>> segmentFeatures(const Eigen::VectorXi& featureindices, Eigen::VectorXd meancurvature, const Mesh& mesh);
 
 };
 

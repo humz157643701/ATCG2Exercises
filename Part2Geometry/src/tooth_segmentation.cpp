@@ -42,21 +42,26 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 	Eigen::VectorXd mean_curvature(mesh.vertices().rows());
 	std::cout << "-- Computing cusp features...\n";
 	Eigen::VectorXi cusps;
-	//computeCusps(working_mesh, cusps, mean_curvature, cuspd_params, true);
+	computeCusps(working_mesh, cusps, mean_curvature, cuspd_params, true);
+
+
+
+	/////////////////////////////////////////////////////////
+	/// SPOKE FEATURE STUFF AND AUTOMATIC GINGIVA CUTTING ///
+	/////////////////////////////////////////////////////////
+	auto planeresult = fitPlane(cusps, working_mesh);
+	//planeresult.first is normal, planeresult.second is point on plane
+	// Gingiva cut
+
+	auto featuregroups = segmentFeatures(cusps, mean_curvature, working_mesh);
+
+
 	Eigen::VectorXi cut_indices;
 	Eigen::VectorXi inverse_index_map; // maps indices from cut mesh to indices from old mesh
 	Eigen::VectorXi index_map; // original mesh indices -> cut mesh indices
 	cutMesh(working_mesh, cut_indices, inverse_index_map, index_map, Eigen::Vector3d{ 0.0, 1.0, -0.05 }.normalized(), Eigen::Vector3d{ 0.0, -3.0, 0.0 });
 	// remap mean curvature to cut mesh
 	Eigen::VectorXd cut_mean_curvature(mean_curvature(inverse_index_map.array()));
-
-	/////////////////////////////////////////////////////////
-	/// SPOKE FEATURE STUFF AND AUTOMATIC GINGIVA CUTTING ///
-	/////////////////////////////////////////////////////////
-
-
-
-
 
 
 
@@ -662,9 +667,13 @@ double ToothSegmentation::calcCotanWeight(const Eigen::Index & i, const Eigen::I
 	}
 }
 
-std::pair<Eigen::Vector3d, Eigen::Vector3d> ToothSegmentation::fitPlane(const Eigen::MatrixXd& features)
+std::pair<Eigen::Vector3d, Eigen::Vector3d> ToothSegmentation::fitPlane(const Eigen::VectorXi& featureindices, const Mesh& mesh)
 {
-	
+	Eigen::MatrixXd features(featureindices.rows(), 3);// = mesh.vertices();
+	for (size_t idx = 0; idx < featureindices.size(); ++idx)
+	{
+		features.row(idx) = mesh.vertices().row(featureindices(idx));
+	}
 	Eigen::Vector3d center = features.colwise().mean();
 	auto normed = Eigen::MatrixXd(features);
 	normed.rowwise() -= center.transpose();
@@ -674,23 +683,71 @@ std::pair<Eigen::Vector3d, Eigen::Vector3d> ToothSegmentation::fitPlane(const Ei
 	
 }
 
-std::vector<Eigen::MatrixXd> ToothSegmentation::segmentFeatures(const Eigen::MatrixXd& features, const Eigen::MatrixXd curveparams, double curvey, const Mesh& mesh)
+std::vector<std::vector<size_t>> ToothSegmentation::segmentFeatures(const Eigen::VectorXi& featureindices, Eigen::VectorXd meancurvature, const Mesh& mesh)
 {
+	//############ Calculating curve, 3rd degreee poly
+	Eigen::MatrixXd M(4, 4);
+	M.fill(0);
+	Eigen::MatrixXd polied(featureindices.rows(), 4);
+	//Construct beta
+	Eigen::VectorXd b_3(4);
+	auto wf = [](double x, double xm) {return 1 / (std::abs(x - xm) + 1); };
+	double x_middle = 0;
+	double z_max = -999999;
+	Eigen::MatrixXd features(featureindices.rows(), 3);// = mesh.vertices();
+	for (size_t idx=0; idx<featureindices.size();++idx)
+	{
+		features.row(idx) = mesh.vertices().row(featureindices(idx));
+	}
+	for (auto& row : features.rowwise())
+	{
+		if (row(2) > z_max)
+		{
+			z_max = row(2);
+			x_middle = row(0);
+		}
+
+	}
+	for (size_t x = 0; x < polied.rows(); ++x)
+	{
+		polied.row(x) << std::pow(features(x, 0), 3), std::pow(features(x, 0), 2), std::pow(features(x, 0), 1), 1; //std::pow(features(x, 0), 4),
+		M += Eigen::MatrixXd(polied.row(x).transpose() * polied.row(x));
+		//std::cout << "polied row: " << polied.row(x).transpose() * polied.row(x) << std::endl;
+		//polied.row(x) *= wf(features(x, 0), x_middle);
+	}
+
+	//M = polied.colwise().sum().transpose() * polied.colwise().sum();
+	std::cout << "polied: " << polied << std::endl;
+	std::cout << "M: \n" << M << std::endl;
+	for (size_t x = 0; x < 4; ++x)
+	{
+		double v = 0;
+		for (auto& xyz : features.rowwise())
+		{
+			v += std::pow(xyz(0), 3 - x) * xyz(2); //wf(xyz(0), x_middle) *
+		}
+
+		b_3.row(x) << v;
+	}
+	Eigen::MatrixXd curveparams = M.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b_3);
+
+	//################ Calculate spokes
 	double min_x, max_x;
 	min_x = features.colwise().minCoeff()(0);
 	max_x = features.colwise().maxCoeff()(0);
 	std::cout << "min, max x: " << min_x << " | " << max_x << std::endl;
 	std::vector<std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>>> spokes{};
-	std::cout << "curve: " << curveparams << std::endl;
 	int num_spokes = 100;
 	spokes.reserve(100);
 	std::vector<Eigen::Vector3d> curvepoints;
 	double fpymax = features.colwise().maxCoeff()(1);
 	double verticesminy = mesh.vertices().colwise().minCoeff()(1);
 	std::cout << "verticesminy: " << verticesminy << std::endl;
-	double stepsize = std::abs(verticesminy - curvey) / 200.0;
+	double stepsize = std::abs(verticesminy - mesh.vertices().colwise().maxCoeff()(1)) / 200.0;
 	std::cout << "fpymax: " << fpymax << std::endl;
-	for (double x = min_x + (min_x / 10.0); x <= max_x + (max_x / 10.0); x += (max_x - min_x) / 150.0) //+(max_x-min_x)/25
+	double curvelength = (max_x - min_x);
+	double spokeinterdistance = curvelength / (14*10.0);
+	for (double x = min_x - spokeinterdistance; x <= max_x + spokeinterdistance; x += spokeinterdistance) //+(max_x-min_x)/25
 	{
 
 		double z = curveparams(0, 0) * std::pow(x, 3) + curveparams(1, 0) * std::pow(x, 2) + curveparams(2, 0) * std::pow(x, 1) + curveparams(3, 0) * std::pow(x, 0);// +curveparams(4, 0);
@@ -702,7 +759,7 @@ std::vector<Eigen::MatrixXd> ToothSegmentation::segmentFeatures(const Eigen::Mat
 		spokes.push_back({});
 		for (int theta = -3; theta <= 3; ++theta)
 		{
-			double t = theta * 10 * (M_PI / 180.0);
+			double t = theta * 5 * (M_PI / 180.0);
 			Eigen::Matrix2d rot;
 			rot << std::cos(t), -std::sin(t), std::sin(t), std::cos(t);
 			//std::cout << "norm: " << normal << std::endl;
@@ -717,33 +774,39 @@ std::vector<Eigen::MatrixXd> ToothSegmentation::segmentFeatures(const Eigen::Mat
 	std::vector<std::vector<double>> depths;
 	depths.reserve(100);
 	std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> finalspokes;
+	std::vector<double> finalspokecurvatures;
 
 	std::cout << "stepsize: " << stepsize << std::endl;
 	for (size_t outer = 0; outer < spokes.size(); outer += 1)
 	{
 		double minspokey = std::numeric_limits<double>::max();
 		long minspokeIdx = -1;
+		Eigen::Index minspokepointid;
+		double meancurvaturealongspoke;
 		for (size_t inner = 0; inner < spokes[outer].size(); inner++)
 		{
 			double maxy = std::numeric_limits<double>::lowest();
 			Eigen::Vector3d loc = spokes[outer][inner].second;
-			for (double x = -1; x <= 1; x += 0.1)
+			std::vector<double> curves;
+			for (double x = -1.5; x <= 1.5; x += 0.1)
 			{
 				Eigen::Vector3d pos = loc + (spokes[outer][inner].first * x * 5);
 				//Let's go down step by step in negative y direction until we find a close vertice
 				std::vector<std::pair<Eigen::Index, double>> srchres;
 				for (double y = pos(1); y >= verticesminy; y -= stepsize)
 				{
-					auto neighbor = mesh.kdtree().index->radiusSearch(pos.data(), stepsize * stepsize, srchres, {});
+					auto neighbor = mesh.kdtree().index->radiusSearch(pos.data(), stepsize * stepsize*0.5, srchres, {});
 					if (srchres.size() > 0)
 					{
 						auto r = mesh.vertices()(srchres.front().first, 1);
+						curves.push_back(meancurvature[srchres.front().first] );
 						//std::cout << " srchres size: " << srchres.size() << "y: " << pos << " id: "<<spokes[outer][inner].second<< std::endl;
 
-						if (r > maxy)
+						if (r > maxy)// && meancurvature[srchres.front().first] <= 0)
 						{
 							maxy = r;
 							spokes[outer][inner].second(1) = r;
+							minspokepointid = srchres.front().first;
 							//curvepoints.push_back(mesh.vertices().row(srchres.front().first));
 						//	curvepoints.push_back(pos);
 						}
@@ -757,12 +820,18 @@ std::vector<Eigen::MatrixXd> ToothSegmentation::segmentFeatures(const Eigen::Mat
 			{
 				minspokey = maxy;
 				minspokeIdx = inner;
+				for (auto& x : curves)
+				{
+					meancurvaturealongspoke += x;
+				}
+				meancurvaturealongspoke /= curves.size();
 			}
 		}
-		if (minspokeIdx != -1)
+		if (minspokeIdx != -1 )
 		{
 			finalspokes.push_back({ spokes[outer][minspokeIdx] });
-			//std::cout << "Spokey: " << spokes[outer][minspokeIdx].second(1) << std::endl;
+			finalspokecurvatures.push_back(meancurvaturealongspoke);
+			std::cout << "Spoke point curvature: " << meancurvaturealongspoke << std::endl;
 		}
 		else
 		{
@@ -779,61 +848,114 @@ std::vector<Eigen::MatrixXd> ToothSegmentation::segmentFeatures(const Eigen::Mat
 	p1d::Persistence1D pers1d;
 	pers1d.RunPersistence(spokeheights);
 	std::vector<p1d::TPairedExtrema> extrema;
-	pers1d.GetPairedExtrema(extrema);
+	pers1d.GetPairedExtrema(extrema, 0.55);
 	std::sort(extrema.begin(), extrema.end(), [](p1d::TPairedExtrema& a, p1d::TPairedExtrema& b) {return a.MinIndex < b.MinIndex; });
-
-	Eigen::MatrixXd spokepoints(20 * extrema.size() + 1, 3);
+	
+	Eigen::MatrixXd spokepoints(30 * finalspokes.size() + 1, 3);
 	spokepoints.fill(0);
-	//for (size_t outer = 0; outer < extrema.size(); outer += 1)
+	for (size_t outer = 0; outer < finalspokes.size(); outer += 1)
+	{
+		int x1 = 0;
+		for (double x = -1; x <= 1; x += 0.1)
+		{
+			Eigen::Vector3d pos = finalspokes[outer].second + (finalspokes[outer].first * x*5); //finalspokes[outer].second + (finalspokes[outer].first * x*5); //
+			//spokepoints.row(outer * 20 + x1) = pos;
+			x1++;
+		}
+	}
+	//auto extr2(extrema);
+	//extr2.clear();
+	//for (auto& x : extrema)
 	//{
-	//	int x1 = 0;
-	//	for (double x = -1; x <= 1; x += 0.1)
-	//	{
-	//		Eigen::Vector3d pos = finalspokes[extrema[outer].MinIndex].second + (finalspokes[extrema[outer].MinIndex].first * x*5); //finalspokes[outer].second + (finalspokes[outer].first * x*5); //
-	//		spokepoints.row(outer * 20 + x1) = pos;
-	//		x1++;
-	//	}
+	//	std::vector<std::pair<Eigen::Index, double>> srchres;
+	//	auto neighbor = mesh.kdtree().query()
+	//	if()
 	//}
-
 	// Remove spokes which have no feature points in between one another
 	// FOr every 2 spokes, check on what side each feature point is, in relation to those 2 spokes. 
-	for (size_t s = 0; s < extrema.size() - 1; s += 2)
+	double memeavg = 0;
+	std::vector<size_t> extremaindices;
+	extremaindices.push_back(0);
+	for (size_t s = 0; s < extrema.size(); s += 1)
 	{
-		Eigen::Vector3d spoke1_leveled, spoke2_leveled;
-		std::cout << "fs: " << features.rows() << std::endl;
-		Eigen::Vector3d comSpokes = (finalspokes[extrema[s].MinIndex].second + finalspokes[extrema[s + 1].MinIndex].second) / 2.0;
-		double featuregroupdistThreshold = (comSpokes - features.colwise().mean().transpose()).norm();
-		int xp = 0;
-		for (auto& fp : features.rowwise())
-		{
-			Eigen::Vector3d feature_leveled;
-			feature_leveled << fp(0), 0, fp(2);
+		std::cout << "Persistence: " << extrema[s].Persistence << std::endl;
+		//if (finalspokecurvatures[extrema[s].MinIndex] > 0)
+		//{
+		//	continue;
+		//}
+		extremaindices.push_back(extrema[s].MinIndex);
+	}
+	extremaindices.push_back(finalspokes.size() - 1);
 
-			spoke1_leveled << finalspokes[extrema[s].MinIndex].second(0), 0, finalspokes[extrema[s].MinIndex].second(2);
-			spoke2_leveled << finalspokes[extrema[s + 1].MinIndex].second(0), 0, finalspokes[extrema[s + 1].MinIndex].second(2);
-			Eigen::Vector3d pos = spoke1_leveled - feature_leveled; //finalspokes[outer].second + (finalspokes[outer].first * x*5); //
-			if (std::signbit(finalspokes[extrema[s].MinIndex].first.cross(pos)(1)) != std::signbit(finalspokes[extrema[s + 1].MinIndex].first.cross(spoke2_leveled - feature_leveled)(1)))
-			{
-				if ((comSpokes - fp.transpose()).norm() > featuregroupdistThreshold)
-				{
-					continue; //Ignore Feature point if distance to spokes is too great.
-				}
-				spokepoints.row(s + xp) = fp.transpose() + Eigen::Vector3d{ 0, 1, 0 };
-				curvepoints.push_back(feature_leveled + Eigen::Vector3d{ 0, 2, 0 });
-				int x1 = 0;
-				for (double x = -1; x <= 1; x += 0.1)
-				{
-					Eigen::Vector3d pos = finalspokes[extrema[s].MinIndex].second + (finalspokes[extrema[s].MinIndex].first * x * 5); //finalspokes[outer].second + (finalspokes[outer].first * x*5); //
-					curvepoints.push_back(pos);
-					pos = finalspokes[extrema[s + 1].MinIndex].second + (finalspokes[extrema[s + 1].MinIndex].first * x * 5); //finalspokes[outer].second + (finalspokes[outer].first * x*5); //
-					curvepoints.push_back(pos);
-					x1++;
-				}
-			}
-			xp++;
+	for (auto& id : extremaindices)
+	{
+		std::cout << "spoke curvature: " << finalspokecurvatures[id] << std::endl;
+		memeavg += finalspokecurvatures[id];
+		int x1 = 0;
+		for (double x = -1.5; x <= 1.5; x += 0.1)
+		{
+			Eigen::Vector3d pos = finalspokes[id].second + (finalspokes[id].first * x * 5); //finalspokes[outer].second + (finalspokes[outer].first * x*5); //
+			curvepoints.push_back(pos);
+			x1++;
 		}
 	}
 
+
+
+	std::vector<std::vector<size_t>> featuregroups;
+
+	for (size_t s = 0; s < extremaindices.size() - 1; s += 1)
+	{
+		Eigen::Vector3d spoke1_leveled, spoke2_leveled;
+		Eigen::Vector3d comSpokes = (finalspokes[extremaindices[s]].second + finalspokes[extremaindices[s+1]].second) / 2.0;
+		double featuregroupdistThreshold = (comSpokes - features.colwise().mean().transpose()).norm();
+		int xp = 0;
+		std::vector<Eigen::Vector3d> spokps;
+		std::vector<Eigen::Vector3d> grpp;
+		std::vector<std::pair<Eigen::Vector3d, size_t>> group1;
+		std::vector<std::pair<Eigen::Vector3d, size_t>> group2;
+
+		for (size_t idx = 0; idx<features.rows();++idx)
+		{
+			Eigen::Vector3d feature_leveled;
+			auto fp = features.row(idx);
+			feature_leveled << fp(0), 0, fp(2);
+
+			spoke1_leveled << finalspokes[extremaindices[s]].second(0), 0, finalspokes[extremaindices[s]].second(2);
+			spoke2_leveled << finalspokes[extremaindices[s+1]].second(0), 0, finalspokes[extremaindices[s+1]].second(2);
+			Eigen::Vector3d pos = feature_leveled - spoke1_leveled; //finalspokes[outer].second + (finalspokes[outer].first * x*5); //
+			Eigen::Vector3d pos2 = feature_leveled - spoke2_leveled;
+			Eigen::Vector3d norm1, norm2;
+			norm1 = finalspokes[extremaindices[s]].first;
+			norm2 = finalspokes[extremaindices[s + 1]].first;
+			
+			if (std::signbit(norm1.cross(pos)(1)) != std::signbit(norm2.cross(pos2)(1)))
+			{
+				group1.push_back({ fp.transpose() + Eigen::Vector3d{ 0, 1, 0 }, idx});
+			}
+			else
+			{
+				group2.push_back({ fp.transpose() + Eigen::Vector3d{ 0, 1, 0 }, idx });
+			}
+		}
+
+
+		featuregroups.push_back({});
+		if (group1.size() > group2.size())
+		{
+			group1 = group2;
+		}
+		for (auto& fp : group1)
+		{
+			double distance = (comSpokes - fp.first).norm();
+			if (distance > featuregroupdistThreshold)
+			{
+				continue;
+			}
+			featuregroups.back().push_back(featureindices(fp.second));
+		}
+	}
+	std::cout << "spoke curvature avg: " << memeavg/double(extrema.size()) << std::endl;
 	std::vector<Eigen::MatrixXd> results;
 	results.push_back(Eigen::MatrixXd{ curvepoints.size(), 3 });
 	int m = spokes.size() * spokes[0].size();
@@ -842,5 +964,14 @@ std::vector<Eigen::MatrixXd> ToothSegmentation::segmentFeatures(const Eigen::Mat
 		results.back().row(x) = curvepoints[x];
 	}
 	results.push_back(spokepoints);
-	return results;
+	igl::opengl::glfw::Viewer viewer2;
+	viewer2.data().set_mesh(mesh.vertices(), mesh.faces());
+	viewer2.data().set_colors(Eigen::RowVector3d(1, 1, 0.5));// Eigen::RowVector3d(1, 0, 1));
+	viewer2.data().add_points(features, Eigen::RowVector3d(1, 0, 0));
+	viewer2.data().add_points(results.front(), Eigen::RowVector3d(0, 1, 1));
+	viewer2.data().add_points(spokepoints, Eigen::RowVector3d(0, 1, 0));
+
+	viewer2.data().point_size = 10;
+	viewer2.launch();
+	return featuregroups;
 }
