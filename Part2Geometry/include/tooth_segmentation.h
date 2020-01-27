@@ -63,6 +63,14 @@ public:
 		double max_zscore;
 	};
 
+	struct ToothMeshExtractionParams
+	{
+		// even tooth threshold
+		double even_tooth_threshold;
+		// odd tooth threshold
+		double odd_tooth_threshold;
+	};
+
 	static void segmentTeethFromMesh(const Mesh& mesh,
 		const Eigen::Vector3d& approximate_mesh_up,
 		const Eigen::Vector3d& mesh_right,
@@ -70,6 +78,7 @@ public:
 		const CuspDetectionParams& cuspd_params = {0.4, 1000, 0.5},
 		const HarmonicFieldParams& hf_params = { 1.0, 1.0 },
 		const MeanCurvatureParams& mc_params = {0.00025, 50, 2.0},
+		const ToothMeshExtractionParams& tme_params = {0.3, 0.6},
 		bool visualize_steps = false);
 
 private:
@@ -96,7 +105,6 @@ private:
 		Eigen::VectorXi& index_map,
 		const Eigen::Vector3d& normal,
 		const Eigen::Vector3d& plane_point);
-
 	static double calcCotanWeight(const Eigen::Index& i,
 		const Eigen::Index& j,
 		const Mesh& mesh);
@@ -111,6 +119,7 @@ private:
 
 	static std::vector<std::vector<size_t>> segmentFeatures(const Eigen::VectorXi& featureindices, Eigen::VectorXd meancurvature, const Mesh& mesh, Eigen::VectorXi idmap);
 
+	static std::vector<Mesh> extractToothMeshes(const Mesh& mesh, const Eigen::VectorXd& harmonic_field, const std::vector<ToothFeature>& teeth, const ToothMeshExtractionParams& tme_params, bool visualize_steps = false);
 };
 
 

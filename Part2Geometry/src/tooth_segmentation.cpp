@@ -14,25 +14,10 @@
 #include <math.h>
 #include<Eigen/IterativeLinearSolvers>
 
-void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vector3d& approximate_mesh_up, const Eigen::Vector3d& mesh_right, std::vector<Mesh>& tooth_meshes, const ToothSegmentation::CuspDetectionParams& cuspd_params, const HarmonicFieldParams& hf_params, const MeanCurvatureParams& mc_params, bool visualize_steps)
+void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vector3d& approximate_mesh_up, const Eigen::Vector3d& mesh_right, std::vector<Mesh>& tooth_meshes, const ToothSegmentation::CuspDetectionParams& cuspd_params, const HarmonicFieldParams& hf_params, const MeanCurvatureParams& mc_params, const ToothMeshExtractionParams& tme_params, bool visualize_steps)
 {
-	// transform mesh to canonical pose
 	std::cout << "--- TOOTH SEGMENTATION ---\n";
-	//std::cout << "-- Transforming mesh into canonical pose...\n";
 	Mesh working_mesh(mesh);
-
-	// manual transformation of the mesh to canonical pose given mesh_up and mesh_right
-	/*Eigen::Matrix3d crot;
-	crot.col(0) = mesh_right.normalized();
-	crot.col(1) = mesh_up.normalized();
-	crot.col(2) = mesh_right.cross(mesh_up).normalized();
-	crot.transposeInPlace();
-	Eigen::Vector3d ctrans = mesh.vertices().colwise().mean().transpose();
-
-	working_mesh.vertices() *= crot.transpose();
-	working_mesh.normals() *= crot.transpose();
-	working_mesh.vertices().rowwise() += ctrans.transpose();
-	working_mesh.recalculateKdTree();*/
 
 	// try to find a better up vector
 	std::cout << "-- Estimating up vector...\n";
@@ -154,6 +139,9 @@ void ToothSegmentation::segmentTeethFromMesh(const Mesh& mesh, const Eigen::Vect
 		viewer.data().set_colors(C);
 		viewer.launch();
 	}
+
+	// extract tooth meshes and return
+	tooth_meshes = extractToothMeshes(working_mesh, harmonic_field, tooth_features, tme_params, visualize_steps);
 }
 
 void ToothSegmentation::computeMeanCurvature(const Mesh & mesh, Eigen::VectorXd & mean_curvature, const MeanCurvatureParams & mc_params, bool visualize_steps)
@@ -1046,4 +1034,65 @@ std::vector<std::vector<size_t>> ToothSegmentation::segmentFeatures(const Eigen:
 	viewer2.data().point_size = 10;
 	viewer2.launch();
 	return featuregroups;
+}
+
+std::vector<Mesh> ToothSegmentation::extractToothMeshes(const Mesh & mesh, const Eigen::VectorXd & harmonic_field, const std::vector<ToothSegmentation::ToothFeature>& teeth, const ToothSegmentation::ToothMeshExtractionParams& tme_params, bool visualize_steps)
+{
+	// idea: for every tooth, start a dfs (more efficient with std::vector) or bfs at every tooth feature point
+	// and mark vertices belonging to the tooth and store their indices. Then assemble the mesh for the tooth.
+	std::vector<Mesh> tooth_meshes;
+	// 1 if vertex belongs to a tooth, 0 otherwise
+	Eigen::VectorXi tooth_map(mesh.vertices().rows());
+	tooth_map.setZero();
+
+	// list of tooth vertex indices
+	std::vector<Eigen::Index> tooth_indices;
+
+	std::vector<Eigen::Index> stack;
+
+	for (std::size_t t = 0; t < teeth.size(); ++t)
+	{
+		tooth_map.setZero();
+		tooth_indices.clear();
+		stack.clear();
+		for (std::size_t f = 0; f < teeth[t].numFeaturePoints; ++f)
+		{
+			// do dfs starting from this feature
+			stack.clear();
+			stack.push_back(teeth[t].featurePointIndices[f]);
+			while (!stack.empty())
+			{
+				// pop a node
+				auto cidx = stack.back();
+				stack.pop_back();
+				if (tooth_map(cidx) == 0 && (t % 2 == 0 ? harmonic_field(cidx) < tme_params.even_tooth_threshold : harmonic_field(cidx) > tme_params.odd_tooth_threshold))
+				{
+					// mark node as tooth
+					tooth_map(cidx) = 1;
+					// add index to tooth index list
+					tooth_indices.push_back(cidx);
+					// push children onto stack
+					for (const auto& a : mesh.adjacency_list()[cidx])
+					{
+						stack.push_back(a);
+					}
+				}
+			}
+		}
+
+		if (visualize_steps)
+		{
+			igl::opengl::glfw::Viewer viewer;
+			viewer.data().set_mesh(mesh.vertices(), mesh.faces());
+			Eigen::MatrixXd C(mesh.vertices().rows(), 3);
+			igl::jet(tooth_map, true, C);
+			viewer.data().set_colors(C);
+			viewer.launch();
+		}
+
+		// extract faces and vertices for this tooth
+
+		// create tooth mesh
+	}
+	return tooth_meshes;
 }

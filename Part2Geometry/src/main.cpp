@@ -86,6 +86,10 @@ int main(int argc, char* argv[])
 				50, // smoothing steps
 				2.0 // max zscore
 			},
+			ToothSegmentation::ToothMeshExtractionParams{
+				0.25,
+				0.75
+			},
 			true
 		);
 
