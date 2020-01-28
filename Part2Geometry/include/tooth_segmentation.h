@@ -78,7 +78,7 @@ public:
 		const CuspDetectionParams& cuspd_params = {0.4, 1000, 0.5},
 		const HarmonicFieldParams& hf_params = { 1.0, 1.0 },
 		const MeanCurvatureParams& mc_params = {0.00025, 50, 2.0},
-		const ToothMeshExtractionParams& tme_params = {0.3, 0.6},
+		const ToothMeshExtractionParams& tme_params = {0.3, 0.7},
 		bool visualize_steps = false);
 
 private:
@@ -112,14 +112,22 @@ private:
 		const Eigen::Index& j,
 		const Eigen::VectorXd& mean_curvature,
 		const HarmonicFieldParams& hf_params);
-	static Eigen::Vector3d estimateUpVector(const Mesh& mesh, const Eigen::Vector3d& approximate_up);
-	static Eigen::Vector3d estimateUpVector(const Eigen::MatrixXd& points, const Eigen::Vector3d& approximate_up);
-
-	static std::pair<Eigen::Vector3d, Eigen::Vector3d> fitPlane(const Eigen::VectorXi& featureindices, const Mesh& mesh, Eigen::VectorXi idmap);
-
-	static std::vector<std::vector<size_t>> segmentFeatures(const Eigen::VectorXi& featureindices, Eigen::VectorXd meancurvature, const Mesh& mesh, Eigen::VectorXi idmap);
-
-	static std::vector<Mesh> extractToothMeshes(const Mesh& mesh, const Eigen::VectorXd& harmonic_field, const std::vector<ToothFeature>& teeth, const ToothMeshExtractionParams& tme_params, bool visualize_steps = false);
+	static Eigen::Vector3d estimateUpVector(const Mesh& mesh,
+		const Eigen::Vector3d& approximate_up);
+	static Eigen::Vector3d estimateUpVector(const Eigen::MatrixXd& points,
+		const Eigen::Vector3d& approximate_up);
+	static std::pair<Eigen::Vector3d, Eigen::Vector3d> fitPlane(const Eigen::VectorXi& featureindices,
+		const Mesh& mesh,
+		Eigen::VectorXi idmap);
+	static std::vector<std::vector<size_t>> segmentFeatures(const Eigen::VectorXi& featureindices,
+		Eigen::VectorXd meancurvature,
+		const Mesh& mesh,
+		Eigen::VectorXi idmap);
+	static std::vector<Mesh> extractToothMeshes(const Mesh& mesh,
+		const Eigen::VectorXd& harmonic_field,
+		const std::vector<ToothFeature>& teeth,
+		const ToothMeshExtractionParams& tme_params,
+		bool visualize_steps = false);
 };
 
 

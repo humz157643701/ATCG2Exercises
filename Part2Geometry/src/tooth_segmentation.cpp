@@ -686,6 +686,7 @@ Eigen::Vector3d ToothSegmentation::estimateUpVector(const Eigen::MatrixXd& point
 	Eigen::JacobiSVD<Eigen::MatrixXd> svd(zero_mean_data, Eigen::ComputeThinU | Eigen::ComputeThinV);
 	return (svd.matrixV().col(2) * (svd.matrixV().col(2).dot(approximate_up) >= 0.0 ? 1.0 : -1.0)).normalized();
 }
+
 std::pair<Eigen::Vector3d, Eigen::Vector3d> ToothSegmentation::fitPlane(const Eigen::VectorXi& featureindices, const Mesh& mesh, Eigen::VectorXi idmap)
 {
 	Eigen::MatrixXd features(featureindices.rows(), 3);// = mesh.vertices();
@@ -1080,6 +1081,46 @@ std::vector<Mesh> ToothSegmentation::extractToothMeshes(const Mesh & mesh, const
 			}
 		}
 
+		// extract faces and vertices for this tooth
+		std::vector<Eigen::RowVector3d> newvertices;
+		std::vector<Eigen::RowVector3i> newfaces;
+		Eigen::VectorXi index_map(mesh.vertices().rows());
+		index_map.setConstant(-1);
+		for (Eigen::Index f = 0; f < mesh.faces().rows(); ++f)
+		{
+			if (tooth_map(mesh.faces()(f, 0)) == 1 && tooth_map(mesh.faces()(f, 1)) == 1 && tooth_map(mesh.faces()(f, 2)) == 1)
+			{
+				Eigen::RowVector3i newface;
+				for (Eigen::DenseIndex i = 0; i < 3; ++i)
+				{
+					if (index_map(mesh.faces()(f, i)) == -1) // if vertex is not yet in new set, add it and put the correponding index into index map
+					{
+						newvertices.push_back(mesh.vertices()(mesh.faces()(f, i), Eigen::all));
+						index_map(mesh.faces()(f, i)) = newvertices.size() - 1;
+						newface(i) = newvertices.size() - 1;
+					}
+					else // append existing index to face
+					{
+						newface(i) = index_map(mesh.faces()(f, i));
+					}
+				}
+				newfaces.push_back(newface);
+			}
+		}
+
+		Eigen::MatrixXd Vnew(newvertices.size(), 3);
+		for (std::size_t i = 0; i < newvertices.size(); ++i)
+			Vnew(i, Eigen::all) = newvertices[i];
+
+		Eigen::MatrixXi Fnew(newfaces.size(), 3);
+		for (std::size_t i = 0; i < newfaces.size(); ++i)
+			Fnew(i, Eigen::all) = newfaces[i];
+
+		Eigen::MatrixXd Nnew;
+		igl::per_vertex_normals(Vnew, Fnew, Nnew);
+
+		tooth_meshes.push_back(Mesh(Vnew, Nnew, Fnew));
+
 		if (visualize_steps)
 		{
 			igl::opengl::glfw::Viewer viewer;
@@ -1088,11 +1129,7 @@ std::vector<Mesh> ToothSegmentation::extractToothMeshes(const Mesh & mesh, const
 			igl::jet(tooth_map, true, C);
 			viewer.data().set_colors(C);
 			viewer.launch();
-		}
-
-		// extract faces and vertices for this tooth
-
-		// create tooth mesh
+		}		
 	}
 	return tooth_meshes;
 }
