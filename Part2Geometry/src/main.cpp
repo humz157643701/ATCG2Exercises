@@ -9,6 +9,7 @@
 #include <planefitter.h>
 #include <curvefitter.h>
 #include <tooth_segmentation.h>
+#include <random>
 #define _USE_MATH_DEFINES
 #include <math.h>
 struct Plane
@@ -91,7 +92,49 @@ int main(int argc, char* argv[])
 			true
 		);
 
+		// Display teeth
+		Eigen::Index total_vertices = 0;
+		Eigen::Index total_faces = 0;
 
+		Eigen::RowVector3d com = mesh.vertices().colwise().mean();
+
+		for (const auto& tooth : teeth)
+		{
+			total_vertices += tooth.vertices().rows();
+			total_faces += tooth.faces().rows();
+		}
+
+		Eigen::MatrixXd tooth_colors(teeth.size(), 3);
+		tooth_colors.setRandom();
+		tooth_colors.array() = tooth_colors.array() * 0.5 + 1.0;
+
+		Eigen::MatrixXd VT(total_vertices, 3);
+		Eigen::MatrixXd CT(total_vertices, 3);
+		Eigen::MatrixXi FT(total_faces, 3);
+
+		Eigen::Index vidx = 0;
+		Eigen::Index fidx = 0;
+		for (Eigen::Index t = 0; t < static_cast<Eigen::Index>(teeth.size()); ++t)
+		{
+			Eigen::RowVector3d tcom = teeth[t].vertices().colwise().mean();
+			Eigen::RowVector3d toffset = (tcom - com) * 15.0;
+
+			for (Eigen::Index f = 0; f < teeth[t].faces().rows(); ++f)
+			{
+				FT(fidx++, Eigen::all) = Eigen::RowVector3i(teeth[t].faces()(f, Eigen::all).array() + vidx);
+			}
+
+			for (Eigen::Index v = 0; v < teeth[t].vertices().rows(); ++v)
+			{
+				CT(vidx, Eigen::all) = tooth_colors(t, Eigen::all);
+				VT(vidx++, Eigen::all) = teeth[t].vertices()(v, Eigen::all) + toffset;				
+			}
+		}
+
+		igl::opengl::glfw::Viewer viewer;
+		viewer.data().set_mesh(VT, FT);
+		viewer.data().set_colors(CT);
+		viewer.launch();
 	}
 	catch (const std::exception& ex)
 	{

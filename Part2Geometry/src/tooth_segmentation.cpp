@@ -1053,6 +1053,9 @@ std::vector<Mesh> ToothSegmentation::extractToothMeshes(const Mesh & mesh, const
 
 	for (std::size_t t = 0; t < teeth.size(); ++t)
 	{
+		if (teeth[t].numFeaturePoints == 0)
+			continue;
+
 		tooth_map.setZero();
 		tooth_indices.clear();
 		stack.clear();
