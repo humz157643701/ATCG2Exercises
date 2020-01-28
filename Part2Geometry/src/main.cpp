@@ -105,8 +105,11 @@ int main(int argc, char* argv[])
 		}
 
 		Eigen::MatrixXd tooth_colors(teeth.size(), 3);
-		tooth_colors.setRandom();
-		tooth_colors.array() = tooth_colors.array() * 0.5 + 1.0;
+		srand(42);
+		for (Eigen::Index t = 0; t < static_cast<Eigen::Index>(teeth.size()); ++t)
+		{
+			tooth_colors(t, Eigen::all) = Eigen::RowVector3d{static_cast<double>(rand()) / RAND_MAX, static_cast<double>(rand()) / RAND_MAX, static_cast<double>(rand()) / RAND_MAX};
+		}		
 
 		Eigen::MatrixXd VT(total_vertices, 3);
 		Eigen::MatrixXd CT(total_vertices, 3);
