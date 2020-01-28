@@ -117,7 +117,7 @@ int main(int argc, char* argv[])
 		for (Eigen::Index t = 0; t < static_cast<Eigen::Index>(teeth.size()); ++t)
 		{
 			Eigen::RowVector3d tcom = teeth[t].vertices().colwise().mean();
-			Eigen::RowVector3d toffset = (tcom - com) * 0.5;
+			Eigen::RowVector3d toffset = (tcom - com).normalized() * 5.0;
 
 			for (Eigen::Index f = 0; f < teeth[t].faces().rows(); ++f)
 			{
